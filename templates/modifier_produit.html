@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Modifier le produit{% endblock %}
+{% block content %}
+
+<div class="container" style="max-width: 700px;">
+    <div class="content-card">
+        <h3 class="mb-4"><i class="fas fa-edit text-primary"></i> Modifier le produit</h3>
+        
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Modifiez le nom et/ou les prix du produit. Les changements seront appliqués immédiatement.
+        </div>
+        
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Nom du produit *</label>
+                <input type="text" class="form-control form-control-lg" name="nom" value="{{ produit.nom }}" required>
+            </div>
+            
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="fas fa-tag"></i> Prix de vente</h5>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Prix de vente Hall (FCFA)</label>
+                <input type="number" class="form-control form-control-lg" name="prix_hall" value="{{ produit.prix_vente_hall }}" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Prix Kit (FCFA)</label>
+                <input type="number" class="form-control form-control-lg" name="prix_kit" value="{{ produit.prix_kit or 0 }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Prix Bar (FCFA)</label>
+                <input type="number" class="form-control form-control-lg" name="prix_bar" value="{{ produit.prix_bar or 0 }}">
+            </div>
+            
+            <hr class="my-4">
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('produits') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Annuler</a>
+                <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-save"></i> Enregistrer les modifications</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

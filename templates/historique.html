@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Historique & Consultation{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-history text-primary"></i> Historique & Consultation</h2>
+    <span class="text-muted">{{ nb_ventes }} vente(s)</span>
+</div>
+
+<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
+    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtres</h5>
+    <form method="GET" action="{{ url_for('historique') }}" class="row g-3">
+        <div class="col-md-3"><label class="form-label fw-bold">Du</label><input type="date" class="form-control" name="date_debut" value="{{ date_debut }}"></div>
+        <div class="col-md-3"><label class="form-label fw-bold">Au</label><input type="date" class="form-control" name="date_fin" value="{{ date_fin }}"></div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Mode</label>
+            <select class="form-select" name="mode">
+                <option value="">Tous</option>
+                <option value="especes" {% if mode_filtre == 'especes' %}selected{% endif %}>💵 Espèces</option>
+                <option value="wave" {% if mode_filtre == 'wave' %}selected{% endif %}>📱 Wave</option>
+                <option value="orange_money" {% if mode_filtre == 'orange_money' %}selected{% endif %}>📱 Orange Money</option>
+                <option value="credit" {% if mode_filtre == 'credit' %}selected{% endif %}>💳 Crédit</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Rechercher</button></div>
+    </form>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #1565c0;"><div class="label"><i class="fas fa-receipt"></i> Nombre de ventes</div><div class="value">{{ nb_ventes }}</div></div></div>
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #2e7d32;"><div class="label"><i class="fas fa-coins"></i> Total CA</div><div class="value">{{ fmt(total_ventes) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div></div></div>
+</div>
+
+<div class="content-card">
+    <h5 class="mb-3"><i class="fas fa-list"></i> Liste des ventes</h5>
+    {% if ventes %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr><th>Date & Heure</th><th>Client</th><th class="text-center">Nb Produits</th><th>Mode</th><th class="text-end">Montant</th></tr>
+            </thead>
+            <tbody>
+                {% for v in ventes %}
+                <tr>
+                    <td><strong>{{ v.date_heure }}</strong></td>
+                    <td>{{ v.client_nom or 'Comptoir' }}</td>
+                    <td class="text-center"><span class="badge bg-info">{{ v.nb_produits }}</span></td>
+                    <td>
+                        {% if v.mode_paiement == 'especes' %}<span class="badge bg-success">💵 Espèces</span>
+                        {% elif v.mode_paiement == 'wave' %}<span class="badge bg-primary">📱 Wave</span>
+                        {% elif v.mode_paiement == 'orange_money' %}<span class="badge bg-warning text-dark">📱 Orange</span>
+                        {% else %}<span class="badge bg-danger">💳 Crédit</span>{% endif %}
+                    </td>
+                    <td class="text-end fw-bold">{{ fmt(v.total) }} FCFA</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<div class="alert alert-info text-center">Aucune vente trouvée.</div>{% endif %}
+</div>
+{% endblock %}{% extends "base.html" %}
+{% block title %}Historique & Consultation{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-history text-primary"></i> Historique & Consultation</h2>
+    <span class="text-muted">{{ nb_ventes }} vente(s)</span>
+</div>
+
+<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
+    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtres</h5>
+    <form method="GET" action="{{ url_for('historique') }}" class="row g-3">
+        <div class="col-md-3"><label class="form-label fw-bold">Du</label><input type="date" class="form-control" name="date_debut" value="{{ date_debut }}"></div>
+        <div class="col-md-3"><label class="form-label fw-bold">Au</label><input type="date" class="form-control" name="date_fin" value="{{ date_fin }}"></div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold">Mode</label>
+            <select class="form-select" name="mode">
+                <option value="">Tous</option>
+                <option value="especes" {% if mode_filtre == 'especes' %}selected{% endif %}>💵 Espèces</option>
+                <option value="wave" {% if mode_filtre == 'wave' %}selected{% endif %}>📱 Wave</option>
+                <option value="orange_money" {% if mode_filtre == 'orange_money' %}selected{% endif %}>📱 Orange Money</option>
+                <option value="credit" {% if mode_filtre == 'credit' %}selected{% endif %}>💳 Crédit</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Rechercher</button></div>
+    </form>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #1565c0;"><div class="label"><i class="fas fa-receipt"></i> Nombre de ventes</div><div class="value">{{ nb_ventes }}</div></div></div>
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #2e7d32;"><div class="label"><i class="fas fa-coins"></i> Total CA</div><div class="value">{{ fmt(total_ventes) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div></div></div>
+</div>
+
+<div class="content-card">
+    <h5 class="mb-3"><i class="fas fa-list"></i> Liste des ventes</h5>
+    {% if ventes %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr><th>Date & Heure</th><th>Client</th><th class="text-center">Nb Produits</th><th>Mode</th><th class="text-end">Montant</th></tr>
+            </thead>
+            <tbody>
+                {% for v in ventes %}
+                <tr>
+                    <td><strong>{{ v.date_heure }}</strong></td>
+                    <td>{{ v.client_nom or 'Comptoir' }}</td>
+                    <td class="text-center"><span class="badge bg-info">{{ v.nb_produits }}</span></td>
+                    <td>
+                        {% if v.mode_paiement == 'especes' %}<span class="badge bg-success">💵 Espèces</span>
+                        {% elif v.mode_paiement == 'wave' %}<span class="badge bg-primary">📱 Wave</span>
+                        {% elif v.mode_paiement == 'orange_money' %}<span class="badge bg-warning text-dark">📱 Orange</span>
+                        {% else %}<span class="badge bg-danger">💳 Crédit</span>{% endif %}
+                    </td>
+                    <td class="text-end fw-bold">{{ fmt(v.total) }} FCFA</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}<div class="alert alert-info text-center">Aucune vente trouvée.</div>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Commandes (Crédit){% endblock %}
+{% block content %}
+
+<style>
+.barre-action {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    padding: 15px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.total-box {
+    background: linear-gradient(135deg, #fd7e14 0%, #ffc107 100%);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(253, 126, 20, 0.3);
+}
+.montant-ligne {
+    font-weight: bold;
+    color: #fd7e14;
+    text-align: right;
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-file-invoice text-warning"></i> Commandes (Crédit)</h2>
+</div>
+
+<form method="POST" action="{{ url_for('commandes') }}" id="formCommande">
+    <!-- BARRE FIXE -->
+    <div class="barre-action">
+        <div class="row g-3 align-items-end">
+            <!-- Sélection Client (OBLIGATOIRE) -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-user"></i> Client *</label>
+                <select class="form-select form-select-sm" name="client_id" required>
+                    <option value="">-- Choisir un client --</option>
+                    {% for c in clients %}
+                    <option value="{{ c.id }}">{{ c.nom }} (Solde: {{ fmt(c.solde_du) }} FCFA)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Recherche -->
+            <div class="col-md-2">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Rechercher</label>
+                <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerProduits()">
+            </div>
+            
+            <!-- Catégorie -->
+            <div class="col-md-2">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label>
+                <select class="form-select form-select-sm" id="categoryFilter" onchange="filtrerProduits()">
+                    <option value="">Toutes</option>
+                    <option value="AUTRES">AUTRES</option>
+                    <option value="VINS">VINS</option>
+                    <option value="CHAMPAGNES">CHAMPAGNES</option>
+                </select>
+            </div>
+            
+            <!-- Total de la commande -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-coins"></i> Total de la commande</label>
+                <div class="total-box" id="totalCommande">
+                    0 FCFA
+                </div>
+            </div>
+            
+            <!-- Bouton Valider -->
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-warning btn-lg w-100 text-white" onclick="return validerCommande()">
+                    <i class="fas fa-check-circle"></i> Valider
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLEAU DES PRODUITS -->
+    <div class="content-card">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-bordered align-middle table-sm" id="tableProduits">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 30%;">Produit</th>
+                        <th style="width: 8%;">Stock</th>
+                        <th style="width: 12%;">Qté Commande</th>
+                        <th style="width: 15%;">Prix Unitaire (FCFA)</th>
+                        <th style="width: 15%;">Montant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produits %}
+                    <tr class="ligne-produit" id="row-{{ p['id'] }}"
+                        data-nom="{{ p.nom|lower }}"
+                        data-categorie="{{ p.categorie }}"
+                        data-prix-hall="{{ p.prix_vente_hall }}">
+                        <td><strong>{{ p.nom }}</strong> <br><small class="text-muted">{{ p.categorie }}</small></td>
+                        <td class="text-center">
+                            <span class="badge {% if p.stock_hall <= 5 %}bg-danger{% else %}bg-info{% endif %}">{{ p.stock_hall }}</span>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm qte-input" name="qte_cmd_{{ p['id'] }}" min="0" value="0" onchange="calculerLigne({{ p['id'] }})">
+                        </td>
+                        <td>
+                            <!-- Prix modifiable, pré-rempli avec le prix Hall -->
+                            <input type="number" class="form-control form-control-sm prix-input" name="prix_cmd_{{ p['id'] }}" value="{{ p.prix_vente_hall }}" onchange="calculerLigne({{ p['id'] }})">
+                        </td>
+                        <td class="montant-ligne" id="montant-{{ p['id'] }}">0 FCFA</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<script>
+// 1. Filtrer les produits
+function filtrerProduits() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    document.querySelectorAll('.ligne-produit').forEach(row => {
+        const nom = row.getAttribute('data-nom');
+        const cat = row.getAttribute('data-categorie');
+        row.style.display = (nom.includes(search) && (!category || cat === category)) ? '' : 'none';
+    });
+}
+
+// 2. Calculer le montant de chaque ligne + total
+function calculerLigne(produitId) {
+    const row = document.getElementById('row-' + produitId);
+    const qte = parseInt(document.querySelector(`[name="qte_cmd_${produitId}"]`).value) || 0;
+    const prix = parseFloat(document.querySelector(`[name="prix_cmd_${produitId}"]`).value) || 0;
+    
+    const montant = qte * prix;
+    document.getElementById('montant-' + produitId).textContent = montant.toLocaleString('fr-FR') + ' FCFA';
+    
+    // Recalculer le total
+    let total = 0;
+    document.querySelectorAll('.ligne-produit').forEach(r => {
+        const pid = r.id.replace('row-', '');
+        const mtText = document.getElementById('montant-' + pid).textContent;
+        total += parseFloat(mtText.replace(/\s/g, '').replace('FCFA', '')) || 0;
+    });
+    
+    document.getElementById('totalCommande').textContent = total.toLocaleString('fr-FR') + ' FCFA';
+}
+
+// 3. Validation
+function validerCommande() {
+    const clientId = document.querySelector('[name="client_id"]').value;
+    if (!clientId) {
+        alert("⚠️ Vous devez sélectionner un client pour enregistrer une commande.");
+        return false;
+    }
+    
+    let total = parseFloat(document.getElementById('totalCommande').textContent.replace(/\s/g, '').replace('FCFA', '')) || 0;
+    if (total === 0) {
+        alert("⚠️ Aucune commande à enregistrer.");
+        return false;
+    }
+    
+    return confirm(`Valider la commande de ${total.toLocaleString('fr-FR')} FCFA pour ce client ?\n\nLe stock sera débité et la dette du client augmentée.`);
+}
+</script>
+{% endblock %}

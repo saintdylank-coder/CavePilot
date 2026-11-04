@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Produits & Stocks{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-wine-bottle text-primary"></i> Produits & Stocks</h2>
+    <div>
+        <a href="{{ url_for('telecharger_modele_produits') }}" class="btn btn-outline-secondary me-2"><i class="fas fa-download"></i> Modèle Excel</a>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImport"><i class="fas fa-file-import"></i> Importer</button>
+    </div>
+</div>
+
+<!-- FILTRES -->
+<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label fw-bold"><i class="fas fa-search"></i> Rechercher un produit</label>
+            <input type="text" class="form-control" id="searchInput" placeholder="Tapez le nom du produit..." onkeyup="filtrerProduits()">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-filter"></i> Catégorie</label>
+            <select class="form-select" id="categoryFilter" onchange="filtrerProduits()">
+                <option value="">Toutes les catégories</option>
+                <option value="AUTRES">AUTRES BOISSONS</option>
+                <option value="VINS">VINS</option>
+                <option value="CHAMPAGNES">CHAMPAGNES & SPIRITUEUX</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-secondary w-100" onclick="resetFiltres()"><i class="fas fa-redo"></i> Réinitialiser</button>
+        </div>
+    </div>
+    <div class="mt-2 text-muted" id="countProduits">{{ produits|length }} produit(s) affiché(s)</div>
+</div>
+
+<div class="content-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="tableProduits">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nom</th>
+                    <th>Catégorie</th>
+                    <th class="text-end">Prix Achat</th>
+                    <th class="text-end">Prix Hall</th>
+                    <th class="text-end">Prix Kit</th>
+                    <th class="text-end">Prix Bar</th>
+                    <th class="text-center">Stock Hall</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produits %}
+                <tr class="ligne-produit" data-nom="{{ p.nom|lower }}" data-categorie="{{ p.categorie }}">
+                    <td><strong>{{ p.nom }}</strong></td>
+                    <td><span class="badge bg-secondary">{{ p.categorie }}</span></td>
+                    <td class="text-end">{{ fmt(p.prix_achat) }} FCFA</td>
+                    <td class="text-end">{{ fmt(p.prix_vente_hall) }} FCFA</td>
+                    <td class="text-end">{{ fmt(p.prix_kit) if p.prix_kit else '-' }}</td>
+                    <td class="text-end">{{ fmt(p.prix_bar) if p.prix_bar else '-' }}</td>
+                    <td class="text-center">
+                        <span class="badge {% if p.stock_hall <= 5 %}bg-danger{% else %}bg-info{% endif %}">{{ p.stock_hall }}</span>
+                    </td>
+                    <td class="text-center">
+                        <a href="{{ url_for('modifier_produit', pid=p.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Modifier">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('supprimer_produit', pid=p.id) }}" class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="return confirm('⚠️ Supprimer définitivement {{ p.nom }} ?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalImport" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-file-import"></i> Importer des produits</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('importer_produits') }}" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <p>Sélectionnez un fichier Excel (.xlsx ou .xls) suivant le modèle téléchargé.</p>
+                    <input type="file" class="form-control" name="fichier_excel" accept=".xlsx, .xls" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Importer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function filtrerProduits() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    const rows = document.querySelectorAll('.ligne-produit');
+    let count = 0;
+    
+    rows.forEach(row => {
+        const nom = row.getAttribute('data-nom');
+        const cat = row.getAttribute('data-categorie');
+        const matchSearch = nom.includes(search);
+        const matchCat = !category || cat === category;
+        
+        if (matchSearch && matchCat) {
+            row.style.display = '';
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('countProduits').textContent = count + ' produit(s) affiché(s)';
+}
+
+function resetFiltres() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('categoryFilter').value = '';
+    filtrerProduits();
+}
+</script>
+{% endblock %}

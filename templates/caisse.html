@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Ventes du jour{% endblock %}
+{% block content %}
+
+<style>
+.barre-action {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    padding: 15px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.total-box {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+}
+.montant-ligne {
+    font-weight: bold;
+    color: #28a745;
+    text-align: right;
+}
+/* Le champ espèces est maintenant blanc (modifiable) mais garde une bordure verte */
+.input-especes {
+    background-color: #ffffff !important;
+    border: 2px solid #28a745 !important;
+    font-weight: bold;
+    color: #28a745;
+}
+.ecart-negatif { color: #dc3545; font-weight: bold; }
+.ecart-positif { color: #fd7e14; font-weight: bold; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-cash-register text-primary"></i> Ventes du jour</h2>
+</div>
+
+<form method="POST" action="{{ url_for('caisse') }}" id="formVente">
+    <!-- BARRE FIXE -->
+    <div class="barre-action">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Rechercher</label>
+                <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerProduits()">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label>
+                <select class="form-select form-select-sm" id="categoryFilter" onchange="filtrerProduits()">
+                    <option value="">Toutes</option>
+                    <option value="AUTRES">AUTRES</option>
+                    <option value="VINS">VINS</option>
+                    <option value="CHAMPAGNES">CHAMPAGNES</option>
+                </select>
+            </div>
+            <!-- ✅ Total dynamique simplifié -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold mb-1"><i class="fas fa-coins"></i> Total cumulé du jour</label>
+                <div class="total-box" id="totalDynamique">
+                    {{ fmt(total_jour) }} FCFA
+                </div>
+            </div>
+            <div class="col-md-4">
+                {% if not caisse_fermee %}
+                <button type="button" class="btn btn-success btn-lg w-100" onclick="ouvrirModalPaiement()">
+                    <i class="fas fa-check-circle"></i> Valider la vente
+                </button>
+                {% else %}
+                <div class="alert alert-danger mb-0 py-3 text-center">
+                    <i class="fas fa-lock"></i> Caisse clôturée
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLEAU DES PRODUITS -->
+    <div class="content-card">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-bordered align-middle table-sm" id="tableProduits">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 30%;">Produit</th>
+                        <th style="width: 10%;">Catégorie</th>
+                        <th style="width: 8%;">Stock</th>
+                        <th style="width: 12%;">Qté Hall</th>
+                        <th style="width: 12%;">Qté Kit</th>
+                        <th style="width: 12%;">Qté Bar</th>
+                        <th style="width: 10%;">Montant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produits %}
+                    <tr class="ligne-produit" id="row-{{ p['id'] }}"
+                        data-nom="{{ p.nom|lower }}"
+                        data-categorie="{{ p.categorie }}"
+                        data-prix-hall="{{ p.prix_vente_hall }}"
+                        data-prix-kit="{{ p.prix_kit or 0 }}"
+                        data-prix-bar="{{ p.prix_bar or 0 }}">
+                        <td><strong>{{ p.nom }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ p.categorie }}</span></td>
+                        <td class="text-center">
+                            <span class="badge {% if p.stock_hall <= 5 %}bg-danger{% else %}bg-info{% endif %}">{{ p.stock_hall }}</span>
+                        </td>
+                        <td><input type="number" class="form-control form-control-sm qte-input" name="qte_hall_{{ p['id'] }}" min="0" value="0" onchange="calculerLigne({{ p['id'] }})" {% if caisse_fermee %}disabled{% endif %}></td>
+                        <td><input type="number" class="form-control form-control-sm qte-input" name="qte_kit_{{ p['id'] }}" min="0" value="0" onchange="calculerLigne({{ p['id'] }})" {% if caisse_fermee %}disabled{% endif %}></td>
+                        <td><input type="number" class="form-control form-control-sm qte-input" name="qte_bar_{{ p['id'] }}" min="0" value="0" onchange="calculerLigne({{ p['id'] }})" {% if caisse_fermee %}disabled{% endif %}></td>
+                        <td class="montant-ligne" id="montant-{{ p['id'] }}">0 FCFA</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<!-- MODAL DE PAIEMENT -->
+<div class="modal fade" id="modalPaiement" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-money-bill-wave"></i> Répartition du paiement</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info text-center">
+                    <h4 class="mb-0"><strong>Total à payer :</strong> <span id="totalVenteModal">0</span> FCFA</h4>
+                </div>
+                
+                <!-- ✅ Champ Espèces maintenant MODIFIABLE -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">💵 Espèces en caisse (FCFA) <small class="text-muted">- (Modifiable en cas d'écart)</small></label>
+                    <input type="number" class="form-control form-control-lg input-especes" id="payEspeces" value="0" min="0" oninput="especesManuallyEdited = true; calculerRepartition()">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">📱 Wave (FCFA)</label>
+                    <input type="number" class="form-control form-control-lg" id="payWave" value="0" min="0" oninput="calculerRepartition()">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">📱 Orange Money (FCFA)</label>
+                    <input type="number" class="form-control form-control-lg" id="payOrange" value="0" min="0" oninput="calculerRepartition()">
+                </div>
+                
+                <!-- Zone Écart -->
+                <div id="zoneEcart" class="alert alert-warning mt-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong><i class="fas fa-exclamation-triangle"></i> Écart détecté :</strong>
+                        <span id="ecartMontant" class="fs-5">0 FCFA</span>
+                    </div>
+                    <label class="form-label fw-bold small">
+                        <i class="fas fa-comment-dots"></i> Motif de l'écart <span class="text-danger">*</span> (obligatoire)
+                    </label>
+                    <textarea class="form-control" id="motifEcart" rows="2" placeholder="Ex: Erreur de rendu monnaie, manque en caisse..."></textarea>
+                </div>
+                
+                <div id="zoneOk" class="alert alert-success mt-3">
+                    <i class="fas fa-check-circle"></i> Montant exact. Aucun écart.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success btn-lg" id="btnValiderPaiement" onclick="validerEtSoumettre()">
+                    <i class="fas fa-check"></i> Valider et Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const totalJourServeur = {{ total_jour }};
+let especesManuallyEdited = false; // Drapeau pour savoir si elle a touché au champ espèces
+
+// 1. Filtrer les produits
+function filtrerProduits() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    document.querySelectorAll('.ligne-produit').forEach(row => {
+        const nom = row.getAttribute('data-nom');
+        const cat = row.getAttribute('data-categorie');
+        row.style.display = (nom.includes(search) && (!category || cat === category)) ? '' : 'none';
+    });
+}
+
+// 2. Calculer le montant de chaque ligne + total dynamique
+function calculerLigne(produitId) {
+    const row = document.getElementById('row-' + produitId);
+    const prixHall = parseFloat(row.getAttribute('data-prix-hall')) || 0;
+    const prixKit = parseFloat(row.getAttribute('data-prix-kit')) || 0;
+    const prixBar = parseFloat(row.getAttribute('data-prix-bar')) || 0;
+    
+    const qteHall = parseInt(document.querySelector(`[name="qte_hall_${produitId}"]`).value) || 0;
+    const qteKit = parseInt(document.querySelector(`[name="qte_kit_${produitId}"]`).value) || 0;
+    const qteBar = parseInt(document.querySelector(`[name="qte_bar_${produitId}"]`).value) || 0;
+    
+    const montant = (qteHall * prixHall) + (qteKit * prixKit) + (qteBar * prixBar);
+    document.getElementById('montant-' + produitId).textContent = montant.toLocaleString('fr-FR') + ' FCFA';
+    
+    // Recalculer le total de la vente en cours
+    let totalVenteEnCours = 0;
+    document.querySelectorAll('.ligne-produit').forEach(r => {
+        const pid = r.id.replace('row-', '');
+        const mtText = document.getElementById('montant-' + pid).textContent;
+        totalVenteEnCours += parseFloat(mtText.replace(/\s/g, '').replace('FCFA', '')) || 0;
+    });
+    
+    // Total dynamique = Total serveur + Vente en cours
+    const totalDynamique = totalJourServeur + totalVenteEnCours;
+    document.getElementById('totalDynamique').textContent = totalDynamique.toLocaleString('fr-FR') + ' FCFA';
+}
+
+// 3. Modal de paiement
+function ouvrirModalPaiement() {
+    let totalVente = 0;
+    document.querySelectorAll('.ligne-produit').forEach(row => {
+        const produitId = row.id.replace('row-', '');
+        const montantText = document.getElementById('montant-' + produitId).textContent;
+        totalVente += parseFloat(montantText.replace(/\s/g, '').replace('FCFA', '')) || 0;
+    });
+    
+    if (totalVente === 0) {
+        alert("⚠️ Aucune vente à enregistrer.");
+        return;
+    }
+    
+    document.getElementById('totalVenteModal').textContent = totalVente.toLocaleString('fr-FR');
+    document.getElementById('modalPaiement').setAttribute('data-total', totalVente);
+    
+    // Réinitialisation
+    document.getElementById('payWave').value = 0;
+    document.getElementById('payOrange').value = 0;
+    document.getElementById('motifEcart').value = '';
+    especesManuallyEdited = false; // On remet le drapeau à false
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalPaiement'));
+    modal.show();
+    calculerRepartition();
+}
+
+// 4. Calcul automatique de la répartition + gestion écart
+function calculerRepartition() {
+    const totalVente = parseFloat(document.getElementById('modalPaiement').getAttribute('data-total')) || 0;
+    const wave = parseFloat(document.getElementById('payWave').value) || 0;
+    const orange = parseFloat(document.getElementById('payOrange').value) || 0;
+    const especesInput = document.getElementById('payEspeces');
+    
+    // ✅ Si elle n'a pas touché au champ espèces, on le calcule automatiquement
+    if (!especesManuallyEdited) {
+        let especes = totalVente - wave - orange;
+        if (especes < 0) especes = 0;
+        especesInput.value = especes;
+    }
+    
+    // Calcul de l'écart réel
+    const especes = parseFloat(especesInput.value) || 0;
+    const totalSaisi = especes + wave + orange;
+    const ecart = totalSaisi - totalVente;
+    
+    const zoneEcart = document.getElementById('zoneEcart');
+    const zoneOk = document.getElementById('zoneOk');
+    const ecartMontant = document.getElementById('ecartMontant');
+    
+    if (Math.abs(ecart) > 0) {
+        zoneEcart.style.display = 'block';
+        zoneOk.style.display = 'none';
+        ecartMontant.textContent = (ecart > 0 ? '+' : '') + ecart.toLocaleString('fr-FR') + ' FCFA';
+        ecartMontant.className = 'fs-5 ' + (ecart > 0 ? 'ecart-positif' : 'ecart-negatif');
+    } else {
+        zoneEcart.style.display = 'none';
+        zoneOk.style.display = 'block';
+    }
+}
+
+// 5. Validation finale
+function validerEtSoumettre() {
+    const totalVente = parseFloat(document.getElementById('modalPaiement').getAttribute('data-total')) || 0;
+    const especes = parseFloat(document.getElementById('payEspeces').value) || 0;
+    const wave = parseFloat(document.getElementById('payWave').value) || 0;
+    const orange = parseFloat(document.getElementById('payOrange').value) || 0;
+    const motifEcart = document.getElementById('motifEcart').value.trim();
+    
+    const totalSaisi = especes + wave + orange;
+    const ecart = totalSaisi - totalVente;
+    
+    // Si écart ≠ 0, le motif est OBLIGATOIRE
+    if (Math.abs(ecart) > 0 && !motifEcart) {
+        alert("⚠️ Un motif est OBLIGATOIRE en cas d'écart de caisse.\n\nVeuillez expliquer la différence de " + ecart.toLocaleString('fr-FR') + " FCFA.");
+        document.getElementById('motifEcart').focus();
+        document.getElementById('motifEcart').style.borderColor = '#dc3545';
+        return;
+    }
+    
+    const form = document.getElementById('formVente');
+    document.querySelectorAll('input[name^="montant_"], input[name="motif_ecart"]').forEach(el => el.remove());
+    
+    form.innerHTML += `<input type="hidden" name="montant_especes" value="${especes}">`;
+    form.innerHTML += `<input type="hidden" name="montant_wave" value="${wave}">`;
+    form.innerHTML += `<input type="hidden" name="montant_orange" value="${orange}">`;
+    form.innerHTML += `<input type="hidden" name="motif_ecart" value="${motifEcart.replace(/"/g, '&quot;')}">`;
+    
+    form.submit();
+}
+</script>
+{% endblock %}

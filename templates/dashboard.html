@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Tableau de Bord{% endblock %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-tachometer-alt text-primary"></i> Tableau de Bord</h2>
+    <span class="text-muted"><i class="far fa-calendar-alt"></i> {{ date_jour }}</span>
+</div>
+
+<!-- KPIs PRINCIPAUX -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left-color: #1565c0;">
+            <div class="label"><i class="fas fa-chart-line"></i> Ventes du Jour</div>
+            <div class="value">{{ "{:,.0f}".format(ventes_jour) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left-color: #2e7d32;">
+            <div class="label"><i class="fas fa-calendar-week"></i> Ventes du Mois</div>
+            <div class="value">{{ ventes_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left-color: #f57c00;">
+            <div class="label"><i class="fas fa-coins"></i> Valeur du Stock</div>
+            <div class="value">{{ valeur_stock }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+            <small class="text-muted">{{ stock_hall }} unités en Hall</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="border-left-color: #c62828;">
+            <div class="label"><i class="fas fa-hand-holding-usd"></i> Crédits en cours</div>
+            <div class="value text-danger">{{ total_credits }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+            <small class="text-muted">{{ total_clients }} clients</small>
+        </div>
+    </div>
+</div>
+
+<!-- TOP 5 MAUVAIS PAYEURS -->
+{% if mauvais_payeurs %}
+<div class="content-card mb-4" style="border-left: 4px solid #dc3545;">
+    <h5 class="mb-3"><i class="fas fa-exclamation-circle text-danger"></i> Top 5 Clients à relancer</h5>
+    <div class="row">
+        {% for c in mauvais_payeurs %}
+        <div class="col-md-4 mb-2">
+            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                <div>
+                    <strong>{{ c.nom }}</strong>
+                    {% if c.plafond_credit > 0 and c.solde_du >= c.plafond_credit %}
+                        <span class="badge bg-danger ms-2">Plafond atteint</span>
+                    {% endif %}
+                </div>
+                <span class="badge bg-danger">{{ c.solde_du }} FCFA</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- GRAPHIQUES PRINCIPAUX -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="content-card">
+            <h5 class="mb-3"><i class="fas fa-chart-bar text-primary"></i> Ventes des 7 derniers jours</h5>
+            <canvas id="graphiqueVentes" height="100"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="content-card">
+            <h5 class="mb-3"><i class="fas fa-chart-pie text-success"></i> Modes de paiement (ce mois)</h5>
+            <canvas id="graphiquePaiement" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="content-card">
+            <h5 class="mb-3"><i class="fas fa-trophy text-warning"></i> Top 3 Catégories (CA ce mois) - Cliquez pour détails</h5>
+            <canvas id="graphiqueCategories" height="60"></canvas>
+            
+            <div id="detailsProduits" class="mt-4" style="display: none;">
+                <h6 class="text-primary mb-3"><i class="fas fa-list"></i> <span id="titreCategorie"></span></h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Produit</th>
+                                <th class="text-center">Qté vendue</th>
+                                <th class="text-end">CA (FCFA)</th>
+                                <th class="text-end">% de la catégorie</th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpsTableauProduits"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 10 DERNIÈRES VENTES (Format Historique/Saisie) -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="content-card">
+            <h5 class="mb-3"><i class="fas fa-receipt text-info"></i> 10 dernières opérations</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date & Heure</th>
+                            <th>Client</th>
+                            <th>Nb Produits</th>
+                            <th>Mode de paiement</th>
+                            <th class="text-end">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in dernieres_ventes %}
+                        <tr>
+                            <td><strong>{{ v.date_heure[5:16] }}</strong></td>
+                            <td>{{ v.client_nom or 'Client comptoir' }}</td>
+                            <td><span class="badge bg-info">{{ v.nb_produits }}</span></td>
+                            <td>
+                                {% if v.mode_paiement == 'especes' %}
+                                    <span class="badge bg-success">💵 Espèces</span>
+                                {% elif v.mode_paiement == 'wave' %}
+                                    <span class="badge bg-primary">📱 Wave</span>
+                                {% elif v.mode_paiement == 'orange_money' %}
+                                    <span class="badge bg-warning text-dark">📱 Orange Money</span>
+                                {% else %}
+                                    <span class="badge bg-danger">💳 Crédit</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end fw-bold">{{ "{:,.0f}".format(v.total) }} FCFA</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ALERTES -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="content-card">
+            <h5 class="mb-3"><i class="fas fa-box-open text-danger"></i> Alertes Stock Bas</h5>
+            {% if alertes_stock %}
+            <div class="row">
+                {% for a in alertes_stock %}
+                <div class="col-md-4 mb-2">
+                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                        <span>{{ a.nom }}</span>
+                        <span class="badge bg-danger">{{ a.quantite }} / {{ a.seuil_alerte }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-success mb-0">
+                <i class="fas fa-check-circle"></i> Aucun produit en alerte de stock.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPT DES GRAPHIQUES -->
+<script>
+Chart.register(ChartDataLabels);
+const detailsCategories = {{ details_categories|tojson }};
+
+// 1. VENTES 7 JOURS
+const ctxVentes = document.getElementById('graphiqueVentes').getContext('2d');
+new Chart(ctxVentes, {
+    type: 'bar',
+    data: {
+        labels: {{ labels_jours|tojson }},
+        datasets: [{
+            label: 'Ventes (FCFA)',
+            data: {{ data_ventes|tojson }},
+            backgroundColor: 'rgba(24, 144, 255, 0.7)',
+            borderColor: '#1890ff',
+            borderWidth: 1,
+            borderRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(context) { return 'Ventes: ' + context.parsed.y.toLocaleString('fr-FR') + ' FCFA'; } } },
+            datalabels: {
+                anchor: 'end', align: 'top', color: '#1890ff', font: { weight: 'bold', size: 11 },
+                formatter: function(value) { return value === 0 ? '' : (value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value); }
+            }
+        },
+        scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return (value / 1000) + 'k FCFA'; } } } }
+    }
+});
+
+// 2. MODES DE PAIEMENT
+const ctxPaiement = document.getElementById('graphiquePaiement').getContext('2d');
+new Chart(ctxPaiement, {
+    type: 'doughnut',
+    data: {
+        labels: {{ labels_paiement|tojson }},
+        datasets: [{ data: {{ data_paiement|tojson }}, backgroundColor: {{ couleurs_paiement|tojson }}, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+            tooltip: { callbacks: { label: function(context) { const pct = {{ data_pourcentage|tojson }}[context.dataIndex]; return context.label + ' : ' + context.parsed.toLocaleString('fr-FR') + ' FCFA (' + pct + '%)'; } } }
+        }
+    }
+});
+
+// 3. TOP 3 CATÉGORIES
+const ctxCat = document.getElementById('graphiqueCategories').getContext('2d');
+new Chart(ctxCat, {
+    type: 'bar',
+    data: {
+        labels: {{ labels_cat|tojson }},
+        datasets: [{ label: 'CA (FCFA)', data: {{ data_cat|tojson }}, backgroundColor: {{ couleurs_cat|tojson }}, borderRadius: 5 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true,
+        onClick: function(evt, elements) {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                afficherDetailsCategorie({{ labels_cat|tojson }}[index]);
+            }
+        },
+        plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: function(context) { return 'CA: ' + context.parsed.x.toLocaleString('fr-FR') + ' FCFA'; } } },
+            datalabels: { anchor: 'end', align: 'right', color: '#333', font: { weight: 'bold', size: 11 }, formatter: function(value) { return (value >= 1000 ? (value / 1000).toFixed(0) + 'k' : value) + ' FCFA'; } }
+        },
+        scales: { x: { beginAtZero: true, ticks: { callback: function(value) { return (value / 1000) + 'k'; } } } }
+    }
+});
+
+function afficherDetailsCategorie(categorie) {
+    const details = detailsCategories[categorie];
+    if (!details || details.length === 0) return;
+    document.getElementById('titreCategorie').textContent = 'Détails : ' + categorie;
+    const tbody = document.getElementById('corpsTableauProduits');
+    tbody.innerHTML = '';
+    details.forEach((p, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${index + 1}</td><td><strong>${p.nom}</strong></td><td class="text-center">${p.qte}</td><td class="text-end">${p.ca.toLocaleString('fr-FR')} FCFA</td><td class="text-end"><span class="badge bg-primary">${p.pct}%</span></td>`;
+        tbody.appendChild(row);
+    });
+    document.getElementById('detailsProduits').style.display = 'block';
+    document.getElementById('detailsProduits').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+</script>
+{% endblock %}

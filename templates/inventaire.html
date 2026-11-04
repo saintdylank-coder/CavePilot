@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Inventaire{% endblock %}
+{% block content %}
+
+<style>
+.barre-action {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    padding: 12px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.btn-export {
+    font-size: 0.85rem;
+    padding: 6px 12px;
+}
+/* Styles pour le modal */
+.modal-header {
+    background: #001529;
+    color: white;
+}
+.modal-header .btn-close {
+    filter: invert(1);
+}
+</style>
+
+<div class="container-fluid">
+    <!-- EN-TÊTE -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0"><i class="fas fa-clipboard-check text-primary"></i> Inventaire</h2>
+        <!-- BOUTON POUR OUVRIR L'HISTORIQUE -->
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalHistorique">
+            <i class="fas fa-history"></i> Voir l'historique
+        </button>
+    </div>
+
+    <!-- FORMULAIRE D'INVENTAIRE -->
+    <form method="POST" action="{{ url_for('inventaire') }}" id="formInventaire">
+        <input type="hidden" name="emplacement" value="{{ emplacement }}">
+        
+        <!-- BARRE FIXE : Filtres + Actions -->
+        <div class="barre-action">
+            <div class="row g-2 align-items-end">
+                <!-- Filtre Emplacement (compact) -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold mb-1"><i class="fas fa-map-marker-alt"></i> Emplacement</label>
+                    <select class="form-select form-select-sm" onchange="window.location.href='{{ url_for('inventaire') }}?emplacement=' + this.value">
+                        <option value="Hall" {% if emplacement == 'Hall' %}selected{% endif %}>🏪 Hall</option>
+                        <option value="Magasin" {% if emplacement == 'Magasin' %}selected{% endif %}>🏭 Magasin</option>
+                    </select>
+                </div>
+                
+                <!-- Date -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold mb-1"><i class="far fa-calendar-alt"></i> Date</label>
+                    <input type="date" class="form-control form-control-sm" name="date_inventaire" value="{{ date_jour }}" required>
+                </div>
+                
+                <!-- Note -->
+                <div class="col-md-3">
+                    <label class="form-label fw-bold mb-1"><i class="fas fa-sticky-note"></i> Note</label>
+                    <input type="text" class="form-control form-control-sm" name="note" placeholder="Observation...">
+                </div>
+                
+                <!-- Recherche -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Rechercher</label>
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerProduits()">
+                </div>
+                
+                <!-- Catégorie -->
+                <div class="col-md-1">
+                    <label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label>
+                    <select class="form-select form-select-sm" id="categoryFilter" onchange="filtrerProduits()">
+                        <option value="">Toutes</option>
+                        <option value="AUTRES">AUTRES</option>
+                        <option value="VINS">VINS</option>
+                        <option value="CHAMPAGNES">CHAMPAGNES</option>
+                    </select>
+                </div>
+                
+                <!-- BOUTONS D'EXPORT -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold mb-1"><i class="fas fa-download"></i> Exporter</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-success btn-export" onclick="exporterFiche('excel')" title="Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-export" onclick="exporterFiche('pdf')" title="PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-export" onclick="exporterFiche('csv')" title="CSV">
+                            <i class="fas fa-file-csv"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary btn-export" onclick="window.print()" title="Imprimer">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bouton Valider (séparé, en bas de la barre) -->
+            <div class="mt-2 d-flex justify-content-between align-items-center pt-2" style="border-top: 1px solid #eee;">
+                <small class="text-muted" id="countProduits">{{ produits|length }} produit(s)</small>
+                <button type="submit" class="btn btn-success" onclick="return confirm('Valider cet inventaire ? Les stocks seront mis à jour.')">
+                    <i class="fas fa-check-circle"></i> Valider l'inventaire
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLEAU PLEINE LARGEUR -->
+        <div class="content-card">
+            <div class="table-responsive" style="max-height: 700px; overflow-y: auto;">
+                <table class="table table-bordered align-middle table-sm" id="tableInventaire">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 30%;">Produit</th>
+                            <th style="width: 12%;">Catégorie</th>
+                            <th style="width: 13%;">Stock Théorique</th>
+                            <th style="width: 18%;">Stock Physique</th>
+                            <th style="width: 12%;">Écart</th>
+                            <th style="width: 15%;">Observation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in produits %}
+                        <tr class="ligne-produit" 
+                            data-nom="{{ p.nom|lower }}"
+                            data-categorie="{{ p.categorie }}">
+                            <td><strong>{{ p.nom }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ p.categorie }}</span></td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ p.stock_theorique }}</span>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control form-control-sm stock-physique" 
+                                       name="stock_physique_{{ p.id }}" 
+                                       data-theorique="{{ p.stock_theorique }}"
+                                       min="0" 
+                                       value="{{ p.stock_theorique }}"
+                                       oninput="calculerEcart(this)">
+                            </td>
+                            <td class="text-center">
+                                <span class="badge ecart-badge bg-secondary">0</span>
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" placeholder="Raison...">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- MODAL HISTORIQUE (Fenêtre popup) -->
+<div class="modal fade" id="modalHistorique" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-history"></i> Historique des inventaires</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if historique %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Date</th>
+                                <th>Emplacement</th>
+                                <th>Utilisateur</th>
+                                <th>Nombre de produits</th>
+                                <th>Écart total</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in historique %}
+                            <tr>
+                                <td>{{ h.date_inventaire }}</td>
+                                <td><span class="badge bg-primary">{{ h.emplacement }}</span></td>
+                                <td>{{ h.utilisateur_nom }}</td>
+                                <td>{{ h.nb_lignes }}</td>
+                                <td>
+                                    {% if h.total_ecart > 0 %}
+                                        <span class="badge bg-success">+{{ h.total_ecart }}</span>
+                                    {% elif h.total_ecart < 0 %}
+                                        <span class="badge bg-danger">{{ h.total_ecart }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ h.note or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>Aucun inventaire enregistré pour le moment.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filtrer les produits
+function filtrerProduits() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const category = document.getElementById('categoryFilter').value;
+    const rows = document.querySelectorAll('.ligne-produit');
+    let count = 0;
+    
+    rows.forEach(row => {
+        const nom = row.getAttribute('data-nom');
+        const cat = row.getAttribute('data-categorie');
+        const matchSearch = nom.includes(search);
+        const matchCat = !category || cat === category;
+        
+        if (matchSearch && matchCat) {
+            row.style.display = '';
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('countProduits').textContent = count + ' produit(s)';
+}
+
+// Calculer l'écart
+function calculerEcart(input) {
+    const theorique = parseInt(input.getAttribute('data-theorique')) || 0;
+    const physique = parseInt(input.value) || 0;
+    const ecart = physique - theorique;
+    
+    const badge = input.closest('tr').querySelector('.ecart-badge');
+    badge.textContent = (ecart > 0 ? '+' : '') + ecart;
+    
+    if (ecart > 0) {
+        badge.className = 'badge ecart-badge bg-success';
+    } else if (ecart < 0) {
+        badge.className = 'badge ecart-badge bg-danger';
+    } else {
+        badge.className = 'badge ecart-badge bg-secondary';
+    }
+}
+
+// Exporter la fiche
+function exporterFiche(format) {
+    const dateInv = document.querySelector('input[name="date_inventaire"]').value;
+    const emplacement = document.querySelector('input[name="emplacement"]').value;
+    window.location.href = `/export_inventaire/${format}?emplacement=${emplacement}&date=${dateInv}`;
+}
+</script>
+{% endblock %}

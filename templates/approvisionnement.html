@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Approvisionnement{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="fas fa-truck-loading text-primary"></i> Approvisionnement</h2>
+    <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#modalAppro">
+        <i class="fas fa-plus"></i> Nouvel Approvisionnement
+    </button>
+</div>
+
+<!-- KPIs DE LA PÉRIODE -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card" style="border-left-color: #1565c0;">
+            <div class="label"><i class="fas fa-money-bill-wave"></i> Total Investi</div>
+            <div class="value">{{ fmt(kpis.total_investi or 0) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="border-left-color: #2e7d32;">
+            <div class="label"><i class="fas fa-chart-line"></i> Marge Brute Estimée</div>
+            <div class="value text-success">{{ fmt(kpis.marge_brute or 0) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="border-left-color: #f57c00;">
+            <div class="label"><i class="fas fa-boxes"></i> Total Bouteilles</div>
+            <div class="value">{{ kpis.total_bouteilles or 0 }} <small style="font-size: 1rem; color: #666;">unités</small></div>
+        </div>
+    </div>
+</div>
+
+<!-- FILTRES -->
+<div class="content-card mb-4">
+    <form method="GET" action="{{ url_for('approvisionnement') }}" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Du</label>
+            <input type="date" class="form-control" name="date_debut" value="{{ date_debut }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-bold">Au</label>
+            <input type="date" class="form-control" name="date_fin" value="{{ date_fin }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Filtrer</button>
+        </div>
+    </form>
+</div>
+
+<!-- TABLEAU DES APPROVISIONNEMENTS -->
+<div class="content-card">
+    <h5 class="mb-3"><i class="fas fa-list"></i> Historique des approvisionnements</h5>
+    {% if appros %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle table-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Produit</th>
+                    <th>Catégorie</th>
+                    <th class="text-center">Casiers</th>
+                    <th class="text-center">Btles/Casier</th>
+                    <th class="text-center">Total Btles</th>
+                    <th class="text-end">Prix Achat Casier</th>
+                    <th class="text-end">Coût Unitaire</th>
+                    <th class="text-end">Prix Vente</th>
+                    <th class="text-end">Marge Unitaire</th>
+                    <th class="text-end">Marge Totale</th>
+                    <th>Destination</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in appros %}
+                <tr>
+                    <td><strong>{{ a.date_appro }}</strong></td>
+                    <td>{{ a.produit_nom }}</td>
+                    <td><span class="badge bg-secondary">{{ a.categorie }}</span></td>
+                    <td class="text-center">{{ a.casiers }}</td>
+                    <td class="text-center">{{ a.bouteilles_par_casier }}</td>
+                    <td class="text-center"><span class="badge bg-info">{{ a.total_bouteilles }}</span></td>
+                    <td class="text-end">{{ fmt(a.prix_achat_casier) }} FCFA</td>
+                    <td class="text-end">{{ fmt(a.cout_unitaire) }} FCFA</td>
+                    <td class="text-end">{{ fmt(a.prix_vente_actuel) }} FCFA</td>
+                    <td class="text-end">
+                        <span class="badge {% if a.marge_unitaire > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ fmt(a.marge_unitaire) }} FCFA
+                        </span>
+                    </td>
+                    <td class="text-end fw-bold text-success">{{ fmt(a.marge_totale) }} FCFA</td>
+                    <td><span class="badge bg-primary">{{ a.emplacement }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle"></i> Aucun approvisionnement sur cette période.
+    </div>
+    {% endif %}
+</div>
+
+<!-- MODAL NOUVEL APPROVISIONNEMENT -->
+<div class="modal fade" id="modalAppro" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Nouvel Approvisionnement</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('approvisionnement') }}" id="formAppro">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Date *</label>
+                            <input type="date" class="form-control" name="date_appro" value="{{ date_fin }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Produit *</label>
+                            <select class="form-select" name="produit_id" id="selectProduit" required>
+                                <option value="">-- Choisir un produit --</option>
+                                {% for p in produits %}
+                                <option value="{{ p.id }}" data-prix-vente="{{ p.prix_vente_hall }}">{{ p.nom }} ({{ p.categorie }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Nombre de casiers *</label>
+                            <input type="number" class="form-control" name="casiers" id="inputCasiers" min="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Bouteilles par casier *</label>
+                            <input type="number" class="form-control" name="bouteilles_par_casier" id="inputBtles" min="1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Prix d'achat du casier (FCFA) *</label>
+                            <input type="number" class="form-control" name="prix_achat_casier" id="inputPrix" min="0" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Destination *</label>
+                            <div class="d-flex gap-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="emplacement" value="Hall" id="destHall" checked>
+                                    <label class="form-check-label" for="destHall">🏪 Hall</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="emplacement" value="Magasin" id="destMagasin">
+                                    <label class="form-check-label" for="destMagasin">🏭 Magasin</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- APERÇU EN DIRECT -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <h6 class="mb-3"><i class="fas fa-calculator"></i> Aperçu des calculs</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">Coût par bouteille</small>
+                                <div class="fw-bold fs-5" id="previewCout">0 FCFA</div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Marge par bouteille</small>
+                                <div class="fw-bold fs-5 text-success" id="previewMargeUnit">0 FCFA</div>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted">Marge totale sur l'achat</small>
+                                <div class="fw-bold fs-5 text-primary" id="previewMargeTotal">0 FCFA</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fmt(n) {
+    return n.toLocaleString('fr-FR').replace(/,/g, ' ');
+}
+
+function calculerApercu() {
+    const casiers = parseFloat(document.getElementById('inputCasiers').value) || 0;
+    const btles = parseFloat(document.getElementById('inputBtles').value) || 0;
+    const prix = parseFloat(document.getElementById('inputPrix').value) || 0;
+    const select = document.getElementById('selectProduit');
+    const prixVente = parseFloat(select.options[select.selectedIndex]?.dataset.prixVente || 0);
+    
+    const coutUnit = btles > 0 ? prix / btles : 0;
+    const margeUnit = prixVente - coutUnit;
+    const totalBtles = casiers * btles;
+    const margeTotal = margeUnit * totalBtles;
+    
+    document.getElementById('previewCout').textContent = fmt(Math.round(coutUnit)) + ' FCFA';
+    document.getElementById('previewMargeUnit').textContent = fmt(Math.round(margeUnit)) + ' FCFA';
+    document.getElementById('previewMargeTotal').textContent = fmt(Math.round(margeTotal)) + ' FCFA';
+}
+
+document.getElementById('inputCasiers').addEventListener('input', calculerApercu);
+document.getElementById('inputBtles').addEventListener('input', calculerApercu);
+document.getElementById('inputPrix').addEventListener('input', calculerApercu);
+document.getElementById('selectProduit').addEventListener('change', calculerApercu);
+</script>
+{% endblock %}

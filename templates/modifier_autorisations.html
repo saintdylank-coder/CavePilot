@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Modifier les autorisations{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0"><i class="fas fa-user-edit text-primary"></i> Modifier les autorisations</h2>
+        <a href="{{ url_for('comptes') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+    </div>
+
+    <div class="content-card" style="max-width: 600px; margin: auto;">
+        <h4 class="mb-3"><i class="fas fa-user"></i> {{ user.nom }} <span class="badge bg-primary">{{ user.role }}</span></h4>
+        
+        <form method="POST" action="{{ url_for('modifier_autorisations', uid=user.id) }}">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0"><i class="fas fa-key"></i> Autorisations</h5>
+                <div>
+                    <button type="button" class="btn btn-sm btn-success me-1" onclick="toggleAll(true)"><i class="fas fa-check-square"></i> Tout cocher</button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="toggleAll(false)"><i class="fas fa-square"></i> Tout décocher</button>
+                </div>
+            </div>
+            
+            <div class="border rounded p-3 mb-4" style="background: #f8f9fa;">
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_dashboard" id="acces_dashboard" {% if user.acces_dashboard %}checked{% endif %}><label class="form-check-label" for="acces_dashboard">📊 Tableau de bord</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_saisie" id="acces_saisie" {% if user.acces_saisie %}checked{% endif %}><label class="form-check-label" for="acces_saisie">🛒 Saisie du jour</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_cloture" id="acces_cloture" {% if user.acces_cloture %}checked{% endif %}><label class="form-check-label" for="acces_cloture">🔒 Caisse / Clôture</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_appro" id="acces_appro" {% if user.acces_appro %}checked{% endif %}><label class="form-check-label" for="acces_appro">📦 Approvisionnement</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_historique" id="acces_historique" {% if user.acces_historique %}checked{% endif %}><label class="form-check-label" for="acces_historique">📜 Historique</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_clients" id="acces_clients" {% if user.acces_clients %}checked{% endif %}><label class="form-check-label" for="acces_clients">👥 Clients / Crédits</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_paiements" id="acces_paiements" {% if user.acces_paiements %}checked{% endif %}><label class="form-check-label" for="acces_paiements">💰 Paiements</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_inventaire" id="acces_inventaire" {% if user.acces_inventaire %}checked{% endif %}><label class="form-check-label" for="acces_inventaire">📋 Inventaire</label></div>
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="acces_comptes" id="acces_comptes" {% if user.acces_comptes %}checked{% endif %}><label class="form-check-label" for="acces_comptes">🛡️ Comptes & Accès</label></div>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('comptes') }}" class="btn btn-secondary">Annuler</a>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Enregistrer les modifications</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleAll(check) {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name^="acces_"]');
+    checkboxes.forEach(cb => cb.checked = check);
+}
+</script>
+{% endblock %}

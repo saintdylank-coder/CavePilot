@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Connexion - Gestion de Cave</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+        .login-container { background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; max-width: 900px; width: 100%; }
+        .login-left { background: linear-gradient(135deg, #001529 0%, #002140 100%); color: white; padding: 60px 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .login-left .logo { font-size: 80px; margin-bottom: 20px; }
+        .login-right { padding: 60px 40px; }
+        .btn-login { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 10px; padding: 15px; font-size: 1.1rem; font-weight: 600; color: white; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="row g-0">
+            <div class="col-md-5 login-left">
+                <div class="logo">🍾</div>
+                <h1>Gestion de Cave</h1>
+                <p>Système de gestion professionnelle</p>
+            </div>
+            <div class="col-md-7 login-right">
+                <h2>Bienvenue</h2>
+                <p class="subtitle text-muted mb-4">Connectez-vous pour accéder à votre espace</p>
+                
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <form method="POST" action="{{ url_for('connexion') }}">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold"><i class="fas fa-user"></i> Nom d'utilisateur</label>
+                        <input type="text" class="form-control" name="nom_utilisateur" placeholder="Entrez votre nom" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold"><i class="fas fa-lock"></i> Mot de passe</label>
+                        <input type="password" class="form-control" name="mot_de_passe" placeholder="Entrez votre mot de passe" required>
+                    </div>
+                    <div class="d-grid mb-3">
+                        <button type="submit" class="btn btn-login"><i class="fas fa-sign-in-alt"></i> Se connecter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
