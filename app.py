@@ -281,7 +281,7 @@ def supprimer_produit(pid):
     return redirect(url_for('produits'))
 
 # ==========================================
-# 3. VENTES DU JOUR (Caisse)
+# 3. VENTES DU JOUR
 # ==========================================
 @app.route('/caisse', methods=['GET', 'POST'])
 @check_access('acces_saisie')
@@ -366,57 +366,37 @@ def caisse():
     return render_template('caisse.html', produits=prods, total_jour=tj, date_jour=today, caisse_fermee=caisse_fermee)
 
 # ==========================================
-# 3.bis COMMANDES (NOUVEAU)
+# 3.bis COMMANDES
 # ==========================================
 @app.route('/commandes', methods=['GET', 'POST'])
-@check_access('acces_clients') # On utilise l'accès clients pour les commandes
+@check_access('acces_clients')
 def commandes():
     conn = get_db()
-    
     if request.method == 'POST':
         client_id = request.form.get('client_id')
         if not client_id:
-            flash("⚠️ Vous devez sélectionner un client pour une commande.", "danger")
-            conn.close()
-            return redirect(url_for('commandes'))
-            
+            flash("⚠️ Vous devez sélectionner un client.", "danger"); conn.close(); return redirect(url_for('commandes'))
         dh = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        total_commande = 0
-        lignes = []
-        
+        total_commande = 0; lignes = []
         for p in conn.execute('SELECT * FROM produits').fetchall():
             pid = p['id']
             qte = int(request.form.get(f'qte_cmd_{pid}', 0) or 0)
             prix = float(request.form.get(f'prix_cmd_{pid}', 0) or 0)
-            
             if qte > 0 and prix > 0:
-                montant = qte * prix
-                total_commande += montant
+                montant = qte * prix; total_commande += montant
                 lignes.append({'pid': pid, 'qte': qte, 'prix': prix, 'mt': montant})
-                # Décrémenter le stock
                 conn.execute('UPDATE stocks SET quantite = quantite - ? WHERE produit_id = ? AND emplacement = "Hall"', (qte, pid))
-                
         if total_commande == 0:
-            flash("⚠️ Aucune commande à enregistrer.", "warning"); conn.close(); return redirect(url_for('commandes'))
-            
-        # Enregistrer la commande
+            flash("⚠️ Aucune commande.", "warning"); conn.close(); return redirect(url_for('commandes'))
         cur = conn.execute('INSERT INTO commandes (date_commande, client_id, total, statut, utilisateur_id) VALUES (?, ?, ?, "Impayée", ?)', (dh, client_id, total_commande, session['user_id']))
         cmd_id = cur.lastrowid
-        
-        # Enregistrer les lignes
         for l in lignes:
             conn.execute('INSERT INTO lignes_commande (commande_id, produit_id, quantite, prix_unitaire, montant) VALUES (?, ?, ?, ?, ?)', (cmd_id, l['pid'], l['qte'], l['prix'], l['mt']))
-            
-        # Mettre à jour le solde du client
         conn.execute('UPDATE clients SET solde_du = solde_du + ? WHERE id = ?', (total_commande, client_id))
-        
         conn.commit(); conn.close()
-        flash(f"✅ Commande enregistrée pour {total_commande} FCFA !", "success")
-        return redirect(url_for('commandes'))
-
+        flash(f"✅ Commande enregistrée !", "success"); return redirect(url_for('commandes'))
     prods = conn.execute('SELECT p.*, COALESCE(s.quantite, 0) as stock_hall FROM produits p LEFT JOIN stocks s ON p.id = s.produit_id AND s.emplacement = "Hall" ORDER BY nom').fetchall()
-    clients = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall()
-    conn.close()
+    clients = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall(); conn.close()
     return render_template('commandes.html', produits=prods, clients=clients)
 
 # ==========================================
@@ -436,7 +416,7 @@ def cloture():
         esp_reel = float(request.form.get('especes_reel', 0) or 0); wave_reel = float(request.form.get('wave_reel', 0) or 0); orange_reel = float(request.form.get('orange_reel', 0) or 0)
         total_reel = esp_reel + wave_reel + orange_reel
         conn.execute('''INSERT INTO clotures_caisse (date_cloture, heure_cloture, utilisateur_id, especes_theoriques, especes_reelles, ecart_especes, wave_theoriques, wave_reelles, ecart_wave, orange_theoriques, orange_reelles, ecart_orange, total_theorique, total_reel, ecart_total, statut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'cloturee')''', (today, datetime.now().strftime('%H:%M:%S'), session['user_id'], esp_theo, esp_reel, esp_reel - esp_theo, wave_theo, wave_reel, wave_reel - wave_theo, orange_theo, orange_reel, orange_reel - orange_theo, total_theo, total_reel, total_reel - total_theo))
-        conn.commit(); conn.close(); flash("✅ Caisse clôturée avec succès !", "success"); return redirect(url_for('cloture'))
+        conn.commit(); conn.close(); flash("✅ Caisse clôturée !", "success"); return redirect(url_for('cloture'))
     data = {}
     if cloture_existante: data = dict(cloture_existante)
     else:
@@ -454,8 +434,8 @@ def recu_cloture():
     c = conn.execute('SELECT * FROM clotures_caisse WHERE date_cloture = ?', (today,)).fetchone()
     u = conn.execute('SELECT nom FROM utilisateurs WHERE id = ?', (c['utilisateur_id'],)).fetchone() if c else None
     conn.close()
-    if not c: return "Aucune clôture aujourd'hui.", 404
-    html = f"""<html><head><title>Reçu de Clôture</title><style>body{{font-family:Arial;padding:20px;max-width:600px;margin:auto}}h2{{text-align:center;border-bottom:2px solid #333;padding-bottom:10px}}table{{width:100%;border-collapse:collapse;margin-top:20px}}th,td{{border:1px solid #ddd;padding:8px;text-align:left}}th{{background-color:#f2f2f2}}.total{{font-weight:bold;background-color:#e0e0e0}}.sign{{margin-top:50px;display:flex;justify-content:space-between}}.sign div{{border-top:1px solid #000;width:40%;text-align:center;padding-top:5px}}@media print{{.no-print{{display:none}}}}</style></head><body><h2>REÇU DE CLÔTURE DE CAISSE</h2><p><strong>Date :</strong> {c['date_cloture']}<br><strong>Caissier(ère) :</strong> {u['nom'] if u else 'Inconnu'}<br><strong>Heure :</strong> {c['heure_cloture']}</p><table><tr><th>Mode</th><th>Théorique</th><th>Réel</th><th>Écart</th></tr><tr><td>Espèces</td><td>{fmt(c['especes_theoriques'])}</td><td>{fmt(c['especes_reelles'])}</td><td>{fmt(c['ecart_especes'])}</td></tr><tr><td>Wave</td><td>{fmt(c['wave_theoriques'])}</td><td>{fmt(c['wave_reelles'])}</td><td>{fmt(c['ecart_wave'])}</td></tr><tr><td>Orange Money</td><td>{fmt(c['orange_theoriques'])}</td><td>{fmt(c['orange_reelles'])}</td><td>{fmt(c['ecart_orange'])}</td></tr><tr class="total"><td>TOTAL</td><td>{fmt(c['total_theorique'])}</td><td>{fmt(c['total_reel'])}</td><td>{fmt(c['ecart_total'])}</td></tr></table><div class="sign"><div>Signature Caissier(ère)</div><div>Signature Responsable</div></div><div class="no-print" style="text-align:center;margin-top:30px"><button onclick="window.print()" style="padding:10px 20px;font-size:16px;cursor:pointer">🖨️ Imprimer / PDF</button></div></body></html>"""
+    if not c: return "Aucune clôture.", 404
+    html = f"""<html><head><title>Reçu</title><style>body{{font-family:Arial;padding:20px}}table{{width:100%;border-collapse:collapse}}th,td{{border:1px solid #ddd;padding:8px}}</style></head><body><h2>REÇU</h2><p>Date: {c['date_cloture']}</p><table><tr><th>Mode</th><th>Théorique</th><th>Réel</th><th>Écart</th></tr><tr><td>Espèces</td><td>{fmt(c['especes_theoriques'])}</td><td>{fmt(c['especes_reelles'])}</td><td>{fmt(c['ecart_especes'])}</td></tr><tr><td>Wave</td><td>{fmt(c['wave_theoriques'])}</td><td>{fmt(c['wave_reelles'])}</td><td>{fmt(c['ecart_wave'])}</td></tr><tr><td>Orange</td><td>{fmt(c['orange_theoriques'])}</td><td>{fmt(c['orange_reelles'])}</td><td>{fmt(c['ecart_orange'])}</td></tr></table></body></html>"""
     return html
 
 # ==========================================
@@ -473,9 +453,9 @@ def approvisionnement():
         conn.execute('''INSERT INTO approvisionnements (date_appro, produit_id, casiers, bouteilles_par_casier, total_bouteilles, prix_achat_casier, cout_unitaire, prix_vente_actuel, marge_unitaire, marge_totale, emplacement) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (date_app, produit_id, casiers, btles_casier, total_btles, prix_casier, cout_unitaire, prix_vente, marge_unitaire, marge_totale, emplacement))
         conn.execute('''INSERT INTO stocks (produit_id, emplacement, quantite) VALUES (?, ?, ?) ON CONFLICT(produit_id, emplacement) DO UPDATE SET quantite = quantite + ?''', (produit_id, emplacement, total_btles, total_btles))
         conn.execute('UPDATE produits SET prix_achat = ? WHERE id = ?', (cout_unitaire, produit_id))
-        conn.commit(); conn.close(); flash(f"✅ Approvisionnement enregistré ! Marge totale : {fmt(marge_totale)} FCFA", "success"); return redirect(url_for('approvisionnement'))
+        conn.commit(); conn.close(); flash(f"✅ Approvisionnement enregistré !", "success"); return redirect(url_for('approvisionnement'))
     date_debut = request.args.get('date_debut', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')); date_fin = request.args.get('date_fin', datetime.now().strftime('%Y-%m-%d'))
-    appros = conn.execute('SELECT a.*, p.nom as produit_nom, p.categorie, p.prix_vente_hall as prix_vente_actuel_fiche FROM approvisionnements a JOIN produits p ON a.produit_id = p.id WHERE a.date_appro BETWEEN ? AND ? ORDER BY a.date_appro DESC', (date_debut, date_fin)).fetchall()
+    appros = conn.execute('SELECT a.*, p.nom as produit_nom, p.categorie FROM approvisionnements a JOIN produits p ON a.produit_id = p.id WHERE a.date_appro BETWEEN ? AND ? ORDER BY a.date_appro DESC', (date_debut, date_fin)).fetchall()
     kpis = conn.execute('SELECT SUM(a.prix_achat_casier * a.casiers) as total_investi, SUM(a.marge_totale) as marge_brute, SUM(a.total_bouteilles) as total_bouteilles FROM approvisionnements a WHERE a.date_appro BETWEEN ? AND ?', (date_debut, date_fin)).fetchone()
     produits = conn.execute('SELECT * FROM produits ORDER BY categorie, nom').fetchall(); conn.close()
     return render_template('approvisionnement.html', appros=appros, produits=produits, kpis=kpis, date_debut=date_debut, date_fin=date_fin)
@@ -496,17 +476,41 @@ def historique():
     return render_template('historique.html', ventes=ventes, date_debut=db, date_fin=df, mode_filtre=mf, total_ventes=sum(v['total'] for v in ventes), nb_ventes=len(ventes))
 
 # ==========================================
-# 7. CLIENTS
+# 7. CLIENTS & REMBOURSEMENTS
 # ==========================================
 @app.route('/clients', methods=['GET', 'POST'])
 @check_access('acces_clients')
 def clients():
     conn = get_db()
-    if request.method == 'POST':
+    if request.method == 'POST' and 'client_id' not in request.form: # Création de client
         conn.execute('INSERT INTO clients (nom, telephone, adresse, solde_du, plafond_credit) VALUES (?, ?, ?, 0, ?)', (request.form['nom'], request.form['telephone'], request.form.get('adresse', ''), float(request.form['plafond'] or 0)))
         conn.commit(); conn.close(); flash("✅ Client créé !", "success"); return redirect(url_for('clients'))
-    lc = conn.execute('SELECT c.*, MAX(v.date_heure) as derniere_commande FROM clients c LEFT JOIN ventes v ON c.id = v.client_id GROUP BY c.id ORDER BY c.nom').fetchall(); conn.close()
+    lc = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall(); conn.close()
     return render_template('clients.html', clients=lc)
+
+@app.route('/rembourser_client', methods=['POST'])
+@check_access('acces_clients')
+def rembourser_client():
+    conn = get_db()
+    client_id = request.form.get('client_id')
+    montant = float(request.form.get('montant', 0) or 0)
+    mode = request.form.get('mode_paiement', 'especes')
+    
+    if montant > 0 and client_id:
+        # Vérifier le solde actuel
+        client = conn.execute('SELECT solde_du FROM clients WHERE id = ?', (client_id,)).fetchone()
+        if client and montant > client['solde_du']:
+            flash(f"⚠️ Le montant ({fmt(montant)}) est supérieur à la dette ({fmt(client['solde_du'])}).", "danger")
+        else:
+            conn.execute('UPDATE clients SET solde_du = solde_du - ? WHERE id = ?', (montant, client_id))
+            conn.execute('INSERT INTO remboursements (date_remboursement, client_id, montant, mode_paiement, utilisateur_id) VALUES (?, ?, ?, ?, ?)', 
+                         (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id, montant, mode, session['user_id']))
+            conn.commit()
+            flash(f"✅ Paiement de {fmt(montant)} FCFA enregistré !", "success")
+    else:
+        flash("⚠️ Montant invalide.", "danger")
+    conn.close()
+    return redirect(url_for('clients'))
 
 # ==========================================
 # 8. PAIEMENTS
