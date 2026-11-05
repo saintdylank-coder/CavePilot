@@ -636,9 +636,41 @@ def recu_cloture():
     u = conn.execute('SELECT nom FROM utilisateurs WHERE id = ?', (c['utilisateur_id'],)).fetchone() if c else None
     conn.close()
     if not c: return "Aucune clôture.", 404
-    html = f"""<html><head><title>Reçu</title><style>body{{font-family:Arial;padding:20px}}table{{width:100%;border-collapse:collapse}}th,td{{border:1px solid #ddd;padding:8px}}</style></head><body><h2>REÇU</h2><p>Date: {c['date_cloture']}</p><table><tr><th>Mode</th><th>Théorique</th><th>Réel</th><th>Écart</th></tr><tr><td>Espèces</td><td>{fmt(c['especes_theoriques'])}</td><td>{fmt(c['especes_reelles'])}</td><td>{fmt(c['ecart_especes'])}</td></tr><tr><td>Wave</td><td>{fmt(c['wave_theoriques'])}</td><td>{fmt(c['wave_reelles'])}</td><td>{fmt(c['ecart_wave'])}</td></tr><tr><td>Orange</td><td>{fmt(c['orange_theoriques'])}</td><td>{fmt(c['orange_reelles'])}</td><td>{fmt(c['ecart_orange'])}</td></tr></table></body></html>"""
+    
+    # ✅ Mise à jour avec le nom CavePilot
+    html = f"""<html><head><title>Reçu de Clôture - CavePilot</title>
+    <style>
+        body{{font-family:Arial;padding:20px;max-width:600px;margin:auto}}
+        h2{{text-align:center;border-bottom:2px solid #001529;padding-bottom:10px;color:#001529}}
+        table{{width:100%;border-collapse:collapse;margin-top:20px}}
+        th,td{{border:1px solid #ddd;padding:8px;text-align:left}}
+        th{{background-color:#f2f2f2}}
+        .total{{font-weight:bold;background-color:#e0e0e0}}
+        .sign{{margin-top:50px;display:flex;justify-content:space-between}}
+        .sign div{{border-top:1px solid #000;width:40%;text-align:center;padding-top:5px}}
+        @media print{{.no-print{{display:none}}}}
+    </style></head>
+    <body>
+        <h2>🍾 CAVEPILOT - REÇU DE CLÔTURE</h2>
+        <p><strong>Date :</strong> {c['date_cloture']}<br>
+        <strong>Caissier(ère) :</strong> {u['nom'] if u else 'Inconnu'}<br>
+        <strong>Heure :</strong> {c['heure_cloture']}</p>
+        <table>
+            <tr><th>Mode</th><th>Théorique</th><th>Réel</th><th>Écart</th></tr>
+            <tr><td>Espèces</td><td>{fmt(c['especes_theoriques'])}</td><td>{fmt(c['especes_reelles'])}</td><td>{fmt(c['ecart_especes'])}</td></tr>
+            <tr><td>Wave</td><td>{fmt(c['wave_theoriques'])}</td><td>{fmt(c['wave_reelles'])}</td><td>{fmt(c['ecart_wave'])}</td></tr>
+            <tr><td>Orange Money</td><td>{fmt(c['orange_theoriques'])}</td><td>{fmt(c['orange_reelles'])}</td><td>{fmt(c['ecart_orange'])}</td></tr>
+            <tr class="total"><td>TOTAL</td><td>{fmt(c['total_theorique'])}</td><td>{fmt(c['total_reel'])}</td><td>{fmt(c['ecart_total'])}</td></tr>
+        </table>
+        <div class="sign">
+            <div>Signature Caissier(ère)</div>
+            <div>Signature Responsable</div>
+        </div>
+        <div class="no-print" style="text-align:center;margin-top:30px">
+            <button onclick="window.print()" style="padding:10px 20px;font-size:16px;cursor:pointer;background:#001529;color:white;border:none;border-radius:5px;">🖨️ Imprimer / PDF</button>
+        </div>
+    </body></html>"""
     return html
-
 # ==========================================
 # 5. APPROVISIONNEMENT
 # ==========================================

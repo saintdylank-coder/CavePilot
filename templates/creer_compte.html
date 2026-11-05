@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Créer un compte - Gestion Cave</title>
+    <title>Créer un compte - CavePilot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -23,51 +23,19 @@
             max-width: 600px;
             width: 100%;
         }
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .login-header h2 {
-            color: #001529;
-            font-weight: bold;
-        }
-        .login-header .subtitle {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .form-control-lg {
-            border-radius: 10px;
-            padding: 12px 15px;
-        }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header h2 { color: #001529; font-weight: 800; letter-spacing: 1px; }
+        .login-header .subtitle { color: #666; font-size: 0.9rem; }
+        .form-control-lg { border-radius: 10px; padding: 12px 15px; }
         .btn-login {
             background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: white;
-            width: 100%;
-            transition: 0.3s;
+            border: none; border-radius: 10px; padding: 12px;
+            font-size: 1.1rem; font-weight: bold; color: white; width: 100%; transition: 0.3s;
         }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(24, 144, 255, 0.4);
-            color: white;
-        }
-        .footer-link {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 0.85rem;
-        }
-        .footer-link a {
-            color: #1890ff;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .footer-link a:hover {
-            text-decoration: underline;
-        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(24, 144, 255, 0.4); color: white; }
+        .footer-link { text-align: center; margin-top: 20px; font-size: 0.85rem; }
+        .footer-link a { color: #1890ff; text-decoration: none; font-weight: 500; }
+        .footer-link a:hover { text-decoration: underline; }
         .autorisation-box {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -81,8 +49,8 @@
 <body>
     <div class="login-card">
         <div class="login-header">
-            <h2><i class="fas fa-user-shield text-primary"></i> Créer un compte</h2>
-            <p class="subtitle">Réservé au propriétaire de la cave</p>
+            <h2><i class="fas fa-user-shield text-primary"></i> CavePilot</h2>
+            <p class="subtitle">Création de compte - Réservé au propriétaire</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
