@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Créer un compte - Gestion Cave</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h2 {
+            color: #001529;
+            font-weight: bold;
+        }
+        .login-header .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .form-control-lg {
+            border-radius: 10px;
+            padding: 12px 15px;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            width: 100%;
+            transition: 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(24, 144, 255, 0.4);
+            color: white;
+        }
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+        }
+        .footer-link a {
+            color: #1890ff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
+        .autorisation-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <h2><i class="fas fa-user-shield text-primary"></i> Créer un compte</h2>
+            <p class="subtitle">Réservé au propriétaire de la cave</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if not code_valide %}
+        <!-- ÉTAPE 1 : Saisie du Code Maître -->
+        <form method="POST" action="{{ url_for('creer_compte') }}">
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Attention :</strong> Cette fonction est réservée au propriétaire. 
+                Vous devez connaître le <strong>Code Maître</strong> pour continuer.
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label fw-bold"><i class="fas fa-key"></i> Code Maître</label>
+                <input type="password" class="form-control form-control-lg" name="code_maitre" placeholder="Entrez le code maître" required autofocus>
+                <small class="text-muted">Code fourni par le propriétaire du système.</small>
+            </div>
+            
+            <button type="submit" class="btn btn-login">
+                <i class="fas fa-arrow-right"></i> Vérifier et continuer
+            </button>
+        </form>
+        {% else %}
+        <!-- ÉTAPE 2 : Formulaire de création de compte -->
+        <form method="POST" action="{{ url_for('creer_compte') }}" id="formCompte" onsubmit="return verifierMotsDePasse()">
+            <!-- Code maître caché pour validation -->
+            <input type="hidden" name="code_maitre" value="{{ request.form.get('code_maitre', '') }}">
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Nom d'utilisateur *</label>
+                    <input type="text" class="form-control" name="nom" placeholder="Ex: admin" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Rôle / Fonction *</label>
+                    <input type="text" class="form-control" name="role" placeholder="Ex: Patron, Gérant..." required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Mot de passe *</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="mot_de_passe" id="mdp1" placeholder="Min. 6 caractères" required minlength="6" oninput="verifierMotsDePasse()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('mdp1', this)"><i class="fas fa-eye"></i></button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Confirmer le mot de passe *</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" name="confirmation_mdp" id="mdp2" placeholder="Retapez le mot de passe" required minlength="6" oninput="verifierMotsDePasse()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('mdp2', this)"><i class="fas fa-eye"></i></button>
+                    </div>
+                    <small id="messageErreur" class="text-danger" style="display: none;"><i class="fas fa-exclamation-triangle"></i> Les mots de passe ne correspondent pas !</small>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label fw-bold">Jours de travail</label>
+                    <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;">
+                        {% for jour in ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="jours" value="{{ jour }}" id="jour_{{ jour }}">
+                            <label class="form-check-label" for="jour_{{ jour }}">{{ jour[:3] }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-bold mb-0"><i class="fas fa-key"></i> Autorisations</label>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-success me-1" onclick="toggleAll(true)"><i class="fas fa-check-square"></i> Tout</button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="toggleAll(false)"><i class="fas fa-square"></i> Rien</button>
+                        </div>
+                    </div>
+                    <div class="autorisation-box">
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_dashboard" id="acces_dashboard"><label class="form-check-label" for="acces_dashboard">📊 Tableau de bord</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_saisie" id="acces_saisie"><label class="form-check-label" for="acces_saisie">🛒 Ventes du jour</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_cloture" id="acces_cloture"><label class="form-check-label" for="acces_cloture">🔒 Caisse / Clôture</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_appro" id="acces_appro"><label class="form-check-label" for="acces_appro">📦 Approvisionnement</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_historique" id="acces_historique"><label class="form-check-label" for="acces_historique">📜 Historique</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_clients" id="acces_clients"><label class="form-check-label" for="acces_clients">👥 Clients / Crédits</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_paiements" id="acces_paiements"><label class="form-check-label" for="acces_paiements">💰 Paiements</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_inventaire" id="acces_inventaire"><label class="form-check-label" for="acces_inventaire">📋 Inventaire</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_comptes" id="acces_comptes"><label class="form-check-label" for="acces_comptes">🛡️ Comptes & Accès</label></div>
+                    </div>
+                    <small class="text-muted">💡 Le <strong>premier compte créé</strong> sera automatiquement <strong>Administrateur</strong> avec tous les accès.</small>
+                </div>
+                
+                <div class="col-12 d-flex justify-content-between mt-4">
+                    <a href="{{ url_for('connexion') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour à la connexion
+                    </a>
+                    <button type="submit" class="btn btn-login" id="btnCreer" disabled style="width: auto; padding: 12px 30px;">
+                        <i class="fas fa-user-plus"></i> Créer le compte
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const icon = btn.querySelector('i');
+            if (input.type === 'password') { input.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } 
+            else { input.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+        }
+        
+        function toggleAll(check) {
+            const checkboxes = ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes'];
+            checkboxes.forEach(id => { document.getElementById(id).checked = check; });
+        }
+        
+        function verifierMotsDePasse() {
+            const mdp1 = document.getElementById('mdp1').value;
+            const mdp2 = document.getElementById('mdp2').value;
+            const messageErreur = document.getElementById('messageErreur');
+            const btnCreer = document.getElementById('btnCreer');
+            const champMdp2 = document.getElementById('mdp2');
+            if (mdp1.length > 0 && mdp2.length > 0) {
+                if (mdp1 === mdp2) {
+                    messageErreur.style.display = 'none'; btnCreer.disabled = false; champMdp2.style.borderColor = '#28a745'; champMdp2.style.backgroundColor = '#d4edda'; return true;
+                } else {
+                    messageErreur.style.display = 'block'; btnCreer.disabled = true; champMdp2.style.borderColor = '#dc3545'; champMdp2.style.backgroundColor = '#f8d7da'; return false;
+                }
+            } else {
+                messageErreur.style.display = 'none'; btnCreer.disabled = true; champMdp2.style.borderColor = ''; champMdp2.style.backgroundColor = ''; return false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -10,6 +10,9 @@ import io
 app = Flask(__name__)
 app.secret_key = 'cle_secrete_cave_2026_professionnel'
 
+# 🔐 CODE MAÎTRE (à changer si besoin)
+CODE_MAITRE = 'PATRON2026'
+
 def get_db():
     conn = sqlite3.connect('cave.db')
     conn.row_factory = sqlite3.Row
@@ -157,6 +160,92 @@ def modifier_autorisations(uid):
     conn.close(); return render_template('modifier_autorisations.html', user=user)
 
 # ==========================================
+# 0.ter CRÉATION DE COMPTE DEPUIS LA CONNEXION (avec Code Maître)
+# ==========================================
+@app.route('/creer_compte', methods=['GET', 'POST'])
+def creer_compte():
+    """
+    Permet de créer un compte depuis l'écran de connexion.
+    Nécessite un Code Maître pour prouver qu'on est le propriétaire.
+    Le premier compte créé a tous les accès (Super Admin).
+    """
+    # Si déjà connecté, rediriger vers comptes
+    if 'user_id' in session:
+        return redirect(url_for('comptes'))
+    
+    if request.method == 'POST':
+        code_maitre = request.form.get('code_maitre', '').strip()
+        
+        # Vérifier le code maître
+        if code_maitre != CODE_MAITRE:
+            flash("❌ Code maître incorrect.", "danger")
+            return render_template('creer_compte.html', code_valide=False)
+        
+        # Code maître correct → traiter le formulaire de création
+        nom = request.form.get('nom', '').strip()
+        role = request.form.get('role', '').strip()
+        mdp = request.form.get('mot_de_passe', '')
+        mdp2 = request.form.get('confirmation_mdp', '')
+        jours = ','.join(request.form.getlist('jours'))
+        
+        # Vérifications
+        if not nom or not role or not mdp:
+            flash("⚠️ Tous les champs obligatoires doivent être remplis.", "warning")
+            return render_template('creer_compte.html', code_valide=True)
+        
+        if mdp != mdp2:
+            flash("⚠️ Les mots de passe ne correspondent pas.", "warning")
+            return render_template('creer_compte.html', code_valide=True)
+        
+        if len(mdp) < 6:
+            flash("⚠️ Le mot de passe doit faire au moins 6 caractères.", "warning")
+            return render_template('creer_compte.html', code_valide=True)
+        
+        conn = get_db()
+        
+        # Vérifier si l'utilisateur existe déjà
+        if conn.execute('SELECT id FROM utilisateurs WHERE nom = ?', (nom,)).fetchone():
+            flash("⚠️ Ce nom d'utilisateur existe déjà.", "warning")
+            conn.close()
+            return render_template('creer_compte.html', code_valide=True)
+        
+        # Vérifier s'il y a déjà des utilisateurs (pour déterminer si c'est le Super Admin)
+        nb_users = conn.execute('SELECT COUNT(*) as c FROM utilisateurs').fetchone()['c']
+        est_super_admin = (nb_users == 0)
+        
+        # Si Super Admin → tous les accès à 1, sinon → accès selon les cases cochées
+        if est_super_admin:
+            acces = {
+                'acces_dashboard': 1, 'acces_saisie': 1, 'acces_cloture': 1,
+                'acces_appro': 1, 'acces_historique': 1, 'acces_clients': 1,
+                'acces_paiements': 1, 'acces_inventaire': 1, 'acces_comptes': 1
+            }
+            role_final = 'Administrateur'
+        else:
+            acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes']}
+            role_final = role
+        
+        conn.execute('''INSERT INTO utilisateurs 
+            (nom, role, mot_de_passe, jours_travail, actif,
+             acces_dashboard, acces_saisie, acces_cloture, acces_appro,
+             acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes)
+            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (nom, role_final, hash_password(mdp), jours,
+             acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'],
+             acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes']))
+        conn.commit(); conn.close()
+        
+        if est_super_admin:
+            flash(f"✅ Compte Administrateur créé ! Connectez-vous avec {nom}.", "success")
+        else:
+            flash(f"✅ Compte {nom} créé avec succès !", "success")
+        
+        return redirect(url_for('connexion'))
+    
+    # GET : afficher le formulaire de code maître
+    return render_template('creer_compte.html', code_valide=False)
+
+# ==========================================
 # 1. DASHBOARD
 # ==========================================
 @app.route('/')
@@ -211,7 +300,6 @@ def dashboard():
         prods = conn.execute('SELECT p.nom, SUM(lv.quantite) as total_qte, SUM(lv.montant_kit) as total_ca FROM lignes_vente lv JOIN produits p ON lv.produit_id = p.id JOIN ventes v ON lv.vente_id = v.id WHERE p.categorie = ? AND strftime("%Y-%m", v.date_heure) = ? GROUP BY p.id ORDER BY total_ca DESC LIMIT 5', (c['categorie'], mois)).fetchall()
         top_cats_data.append({'categorie': c['categorie'], 'total_ca': c['total_ca'], 'produits': prods})
     
-    # ✅ Alertes stock avec tri par criticité (critique d'abord)
     top_ventes = conn.execute('''
         SELECT p.id, SUM(lv.quantite) as total_vendu
         FROM lignes_vente lv
@@ -254,7 +342,6 @@ def dashboard():
                 'criticite': criticite, 'ordre_criticite': ordre_criticite
             })
     
-    # ✅ Tri par criticité (critique d'abord) puis par quantité vendue
     for cat in alertes_par_categorie:
         alertes_par_categorie[cat].sort(key=lambda x: (x['ordre_criticite'], -x['total_vendu']))
     
@@ -431,7 +518,7 @@ def caisse():
     return render_template('caisse.html', produits=prods, total_jour=tj, date_jour=today, caisse_fermee=caisse_fermee, date_saisie=date_saisie)
 
 # ==========================================
-# 3.bis COMMANDES (avec numérotation par client)
+# 3.bis COMMANDES
 # ==========================================
 @app.route('/commandes', methods=['GET', 'POST'])
 @check_access('acces_clients')
@@ -441,11 +528,9 @@ def commandes():
         client_id = request.form.get('client_id')
         if not client_id: flash("⚠️ Client obligatoire.", "danger"); conn.close(); return redirect(url_for('commandes'))
         
-        # ✅ Récupérer le nom du client pour générer le préfixe
         client = conn.execute('SELECT nom FROM clients WHERE id = ?', (client_id,)).fetchone()
         nom_client = client['nom'].strip() if client else 'CLI'
         
-        # ✅ Générer le préfixe : 3 premières lettres du nom en majuscules
         prefixe = nom_client[:3].upper().replace(' ', '')
         if len(prefixe) < 3:
             prefixe = prefixe.ljust(3, 'X')
@@ -462,7 +547,6 @@ def commandes():
                 conn.execute('UPDATE stocks SET quantite = quantite - ? WHERE produit_id = ? AND emplacement = "Hall"', (qte, pid))
         if total_commande == 0: flash("⚠️ Aucune commande.", "warning"); conn.close(); return redirect(url_for('commandes'))
         
-        # ✅ Générer le numéro de commande unique par client
         dernier_numero = conn.execute(
             'SELECT MAX(CAST(SUBSTR(numero_commande, 9) AS INTEGER)) as max_num FROM commandes WHERE numero_commande LIKE ?',
             (f'CMD-{prefixe}-%',)

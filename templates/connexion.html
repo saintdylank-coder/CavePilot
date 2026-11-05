@@ -2,53 +2,111 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Connexion - Gestion de Cave</title>
+    <title>Connexion - Gestion Cave</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
-        .login-container { background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; max-width: 900px; width: 100%; }
-        .login-left { background: linear-gradient(135deg, #001529 0%, #002140 100%); color: white; padding: 60px 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .login-left .logo { font-size: 80px; margin-bottom: 20px; }
-        .login-right { padding: 60px 40px; }
-        .btn-login { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 10px; padding: 15px; font-size: 1.1rem; font-weight: 600; color: white; }
+        body {
+            background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 450px;
+            width: 100%;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-header h2 {
+            color: #001529;
+            font-weight: bold;
+        }
+        .login-header .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .form-control-lg {
+            border-radius: 10px;
+            padding: 12px 15px;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: white;
+            width: 100%;
+            transition: 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(24, 144, 255, 0.4);
+            color: white;
+        }
+        .footer-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+        }
+        .footer-link a {
+            color: #1890ff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="row g-0">
-            <div class="col-md-5 login-left">
-                <div class="logo">🍾</div>
-                <h1>Gestion de Cave</h1>
-                <p>Système de gestion professionnelle</p>
+    <div class="login-card">
+        <div class="login-header">
+            <h2><i class="fas fa-wine-bottle text-primary"></i> Ma Cave</h2>
+            <p class="subtitle">Gestion Professionnelle</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('connexion') }}">
+            <div class="mb-3">
+                <label class="form-label fw-bold"><i class="fas fa-user"></i> Nom d'utilisateur</label>
+                <input type="text" class="form-control form-control-lg" name="nom_utilisateur" placeholder="Entrez votre nom" required autofocus>
             </div>
-            <div class="col-md-7 login-right">
-                <h2>Bienvenue</h2>
-                <p class="subtitle text-muted mb-4">Connectez-vous pour accéder à votre espace</p>
-                
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-                
-                <form method="POST" action="{{ url_for('connexion') }}">
-                    <div class="mb-4">
-                        <label class="form-label fw-bold"><i class="fas fa-user"></i> Nom d'utilisateur</label>
-                        <input type="text" class="form-control" name="nom_utilisateur" placeholder="Entrez votre nom" required>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label fw-bold"><i class="fas fa-lock"></i> Mot de passe</label>
-                        <input type="password" class="form-control" name="mot_de_passe" placeholder="Entrez votre mot de passe" required>
-                    </div>
-                    <div class="d-grid mb-3">
-                        <button type="submit" class="btn btn-login"><i class="fas fa-sign-in-alt"></i> Se connecter</button>
-                    </div>
-                </form>
+            <div class="mb-4">
+                <label class="form-label fw-bold"><i class="fas fa-lock"></i> Mot de passe</label>
+                <input type="password" class="form-control form-control-lg" name="mot_de_passe" placeholder="Entrez votre mot de passe" required>
             </div>
+            <button type="submit" class="btn btn-login">
+                <i class="fas fa-sign-in-alt"></i> Se connecter
+            </button>
+        </form>
+
+        <!-- ✅ LIEN DISCRET POUR CRÉER UN COMPTE -->
+        <div class="footer-link">
+            <a href="{{ url_for('creer_compte') }}"><i class="fas fa-user-plus"></i> Premier accès ? Créer un compte</a>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
