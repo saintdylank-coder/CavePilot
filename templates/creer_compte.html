@@ -97,7 +97,6 @@
         {% endwith %}
 
         {% if not code_valide %}
-        <!-- ÉTAPE 1 : Saisie du Code Maître -->
         <form method="POST" action="{{ url_for('creer_compte') }}">
             <div class="alert alert-warning">
                 <i class="fas fa-info-circle"></i> 
@@ -116,9 +115,7 @@
             </button>
         </form>
         {% else %}
-        <!-- ÉTAPE 2 : Formulaire de création de compte -->
         <form method="POST" action="{{ url_for('creer_compte') }}" id="formCompte" onsubmit="return verifierMotsDePasse()">
-            <!-- Code maître caché pour validation -->
             <input type="hidden" name="code_maitre" value="{{ request.form.get('code_maitre', '') }}">
             
             <div class="row g-3">
@@ -168,7 +165,9 @@
                     </div>
                     <div class="autorisation-box">
                         <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_dashboard" id="acces_dashboard"><label class="form-check-label" for="acces_dashboard">📊 Tableau de bord</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_produits" id="acces_produits"><label class="form-check-label" for="acces_produits">🍾 Produits & Stocks</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_saisie" id="acces_saisie"><label class="form-check-label" for="acces_saisie">🛒 Ventes du jour</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_commandes" id="acces_commandes"><label class="form-check-label" for="acces_commandes">📄 Commandes</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_cloture" id="acces_cloture"><label class="form-check-label" for="acces_cloture">🔒 Caisse / Clôture</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_appro" id="acces_appro"><label class="form-check-label" for="acces_appro">📦 Approvisionnement</label></div>
                         <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_historique" id="acces_historique"><label class="form-check-label" for="acces_historique">📜 Historique</label></div>
@@ -203,8 +202,11 @@
         }
         
         function toggleAll(check) {
-            const checkboxes = ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes'];
-            checkboxes.forEach(id => { document.getElementById(id).checked = check; });
+            const checkboxes = ['acces_dashboard', 'acces_produits', 'acces_saisie', 'acces_commandes', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes'];
+            checkboxes.forEach(id => { 
+                const el = document.getElementById(id);
+                if (el) el.checked = check; 
+            });
         }
         
         function verifierMotsDePasse() {

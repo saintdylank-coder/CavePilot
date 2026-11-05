@@ -128,7 +128,7 @@
     </div>
 </div>
 
-<!-- ✅ ALERTES STOCK BAS : Triées par criticité (critique d'abord) -->
+<!-- ALERTES STOCK BAS : Triées par criticité -->
 <div class="content-card mb-4">
     <h5 class="mb-3">
         <i class="fas fa-exclamation-triangle text-danger"></i> Alertes stock bas
@@ -221,30 +221,32 @@
         🟠 <strong>Important</strong> = Vente moyenne | 
         🟢 <strong>Faible</strong> = Vente faible
     </div>
-</div></div>
+</div>
 
-<!-- ÉCARTS DE CAISSE -->
+<!-- ÉCARTS DE CAISSE (VERSION COMPACTE) -->
 <div class="content-card mb-4">
-    <h5 class="mb-3"><i class="fas fa-balance-scale text-danger"></i> Écarts de caisse</h5>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="fas fa-balance-scale text-danger"></i> Écarts de caisse</h5>
+        <div class="d-flex gap-2">
+            <span class="badge bg-danger">Manques: {{ fmt(total_manques) }} FCFA</span>
+            <span class="badge bg-warning text-dark">Surplus: {{ fmt(total_surplus) }} FCFA</span>
+        </div>
+    </div>
+    
     <form method="GET" action="{{ url_for('dashboard') }}" class="row g-2 align-items-end mb-3">
-        <div class="col-md-3">
-            <label class="form-label small fw-bold">Du</label>
+        <div class="col-auto">
+            <label class="form-label small fw-bold mb-1">Du</label>
             <input type="date" class="form-control form-control-sm" name="date_debut_ecart" value="{{ date_debut_ecart }}">
         </div>
-        <div class="col-md-3">
-            <label class="form-label small fw-bold">Au</label>
+        <div class="col-auto">
+            <label class="form-label small fw-bold mb-1">Au</label>
             <input type="date" class="form-control form-control-sm" name="date_fin_ecart" value="{{ date_fin_ecart }}">
         </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i> Filtrer</button>
-        </div>
-        <div class="col-md-4">
-            <div class="d-flex gap-3 small">
-                <span class="text-danger fw-bold">Manques: {{ fmt(total_manques) }} FCFA</span>
-                <span class="text-warning fw-bold">Surplus: {{ fmt(total_surplus) }} FCFA</span>
-            </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Filtrer</button>
         </div>
     </form>
+    
     {% if ecarts %}
     <div class="table-responsive">
         <table class="table table-hover align-middle table-sm">

@@ -13,10 +13,12 @@
             color: white; 
             padding-top: 20px; 
             position: relative;
-            padding-bottom: 100px; /* ✅ Espace pour la déconnexion */
+            padding-bottom: 120px;
+            display: flex;
+            flex-direction: column;
         }
-        .sidebar-brand { text-align: center; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
-        .sidebar a { color: rgba(255,255,255,0.65); text-decoration: none; padding: 15px 25px; display: block; transition: 0.3s; }
+        .sidebar-brand { text-align: center; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px; }
+        .sidebar a { color: rgba(255,255,255,0.65); text-decoration: none; padding: 12px 25px; display: block; transition: 0.3s; font-size: 0.95rem; }
         .sidebar a:hover, .sidebar a.active { background-color: #002140; color: white; border-left: 4px solid #1890ff; }
         .sidebar i { margin-right: 10px; width: 20px; }
         .main-content { padding: 30px; }
@@ -24,13 +26,19 @@
         .stat-card .value { font-size: 1.8rem; font-weight: bold; color: #333; }
         .content-card { background: white; border-radius: 8px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .logout-section { 
-            position: absolute; 
-            bottom: 20px; 
-            left: 0; 
-            right: 0; 
-            padding: 0 25px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 15px;
+            margin-top: auto;
+            padding: 15px 25px;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            background-color: rgba(0,0,0,0.2);
+        }
+        .logout-section small {
+            display: block;
+            text-align: center;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        .logout-section .btn {
+            font-size: 0.9rem;
         }
     </style>
 </head>
@@ -44,13 +52,15 @@
                 <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}"><i class="fas fa-tachometer-alt"></i> Tableau de bord</a>
                 {% endif %}
                 
+                {% if session.get('acces_produits') %}
                 <a href="{{ url_for('produits') }}" class="{% if request.endpoint == 'produits' %}active{% endif %}"><i class="fas fa-wine-bottle"></i> Produits & Stocks</a>
+                {% endif %}
                 
                 {% if session.get('acces_saisie') %}
                 <a href="{{ url_for('caisse') }}" class="{% if request.endpoint == 'caisse' %}active{% endif %}"><i class="fas fa-cash-register"></i> Ventes du jour</a>
                 {% endif %}
                 
-                {% if session.get('acces_clients') %}
+                {% if session.get('acces_commandes') %}
                 <a href="{{ url_for('commandes') }}" class="{% if request.endpoint == 'commandes' %}active{% endif %}"><i class="fas fa-file-invoice text-warning"></i> Commandes</a>
                 {% endif %}
                 
@@ -83,8 +93,10 @@
                 {% endif %}
                 
                 <div class="logout-section">
-                    <small class="d-block text-center mb-2 opacity-75">Connecté : <strong>{{ session.get('user_nom', 'Inconnu') }}</strong></small>
-                    <a href="{{ url_for('deconnexion') }}" class="btn btn-outline-light w-100 btn-sm"><i class="fas fa-sign-out-alt"></i> Déconnexion</a>
+                    <small>Connecté : <strong>{{ session.get('user_nom', 'Inconnu') }}</strong></small>
+                    <a href="{{ url_for('deconnexion') }}" class="btn btn-outline-light w-100 btn-sm">
+                        <i class="fas fa-sign-out-alt"></i> Déconnexion
+                    </a>
                 </div>
             </nav>
             <main class="col-md-10 main-content">

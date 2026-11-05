@@ -10,7 +10,6 @@ import io
 app = Flask(__name__)
 app.secret_key = 'cle_secrete_cave_2026_professionnel'
 
-# 🔐 CODE MAÎTRE (à changer si besoin)
 CODE_MAITRE = 'PATRON2026'
 
 def get_db():
@@ -77,12 +76,16 @@ def connexion():
             acces_paiements = int(user['acces_paiements'] or 0)
             acces_inventaire = int(user['acces_inventaire'] or 0)
             acces_comptes = int(user['acces_comptes'] or 0)
-            has_access = any([acces_dashboard, acces_saisie, acces_cloture, acces_appro, acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes])
+            acces_produits = int(user['acces_produits'] or 0)
+            acces_commandes = int(user['acces_commandes'] or 0)
+            
+            has_access = any([acces_dashboard, acces_saisie, acces_cloture, acces_appro, acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes, acces_produits, acces_commandes])
             if not has_access:
                 conn.close()
                 flash("⛔ Votre compte n'a aucune autorisation.", "danger")
                 return render_template('connexion.html')
-            if not acces_dashboard: acces_dashboard = 1
+            
+            # ✅ PAS DE FORÇAGE DU DASHBOARD
             session['user_id'] = user['id']
             session['user_nom'] = user['nom']
             session['user_role'] = user['role']
@@ -95,9 +98,37 @@ def connexion():
             session['acces_paiements'] = bool(acces_paiements)
             session['acces_inventaire'] = bool(acces_inventaire)
             session['acces_comptes'] = bool(acces_comptes)
+            session['acces_produits'] = bool(acces_produits)
+            session['acces_commandes'] = bool(acces_commandes)
             conn.close()
             flash(f"✅ Bienvenue {user['nom']} !", "success")
-            return redirect(url_for('dashboard'))
+            
+            # ✅ Redirection intelligente vers le premier onglet autorisé
+            if acces_dashboard:
+                return redirect(url_for('dashboard'))
+            elif acces_produits:
+                return redirect(url_for('produits'))
+            elif acces_saisie:
+                return redirect(url_for('caisse'))
+            elif acces_commandes:
+                return redirect(url_for('commandes'))
+            elif acces_clients:
+                return redirect(url_for('clients'))
+            elif acces_appro:
+                return redirect(url_for('approvisionnement'))
+            elif acces_historique:
+                return redirect(url_for('historique'))
+            elif acces_paiements:
+                return redirect(url_for('paiements'))
+            elif acces_inventaire:
+                return redirect(url_for('inventaire'))
+            elif acces_comptes:
+                return redirect(url_for('comptes'))
+            elif acces_cloture:
+                return redirect(url_for('cloture'))
+            else:
+                flash("⛔ Aucun accès autorisé.", "danger")
+                return redirect(url_for('connexion'))
         else:
             conn.close()
             flash("❌ Identifiants incorrects.", "danger")
@@ -121,10 +152,10 @@ def comptes():
         mdp = request.form['mot_de_passe']
         mdp2 = request.form.get('confirmation_mdp', '')
         jours = ','.join(request.form.getlist('jours'))
-        acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes']}
+        acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes', 'acces_produits', 'acces_commandes']}
         if mdp != mdp2: flash("⚠️ Mots de passe différents.", "danger"); conn.close(); return redirect(url_for('comptes'))
         if conn.execute('SELECT id FROM utilisateurs WHERE nom = ?', (nom,)).fetchone(): flash("⚠️ Utilisateur existe déjà.", "warning"); conn.close(); return redirect(url_for('comptes'))
-        conn.execute('''INSERT INTO utilisateurs (nom, role, mot_de_passe, jours_travail, actif, acces_dashboard, acces_saisie, acces_cloture, acces_appro, acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (nom, role, hash_password(mdp), jours, acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'], acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes']))
+        conn.execute('''INSERT INTO utilisateurs (nom, role, mot_de_passe, jours_travail, actif, acces_dashboard, acces_saisie, acces_cloture, acces_appro, acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes, acces_produits, acces_commandes) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', (nom, role, hash_password(mdp), jours, acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'], acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes'], acces['acces_produits'], acces['acces_commandes']))
         conn.commit(); conn.close()
         flash("✅ Compte créé !", "success"); return redirect(url_for('comptes'))
     users = conn.execute('SELECT * FROM utilisateurs ORDER BY nom').fetchall(); conn.close()
@@ -154,95 +185,102 @@ def modifier_autorisations(uid):
     conn = get_db()
     user = conn.execute('SELECT * FROM utilisateurs WHERE id = ?', (uid,)).fetchone()
     if request.method == 'POST':
-        acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes']}
-        conn.execute('''UPDATE utilisateurs SET acces_dashboard=?, acces_saisie=?, acces_cloture=?, acces_appro=?, acces_historique=?, acces_clients=?, acces_paiements=?, acces_inventaire=?, acces_comptes=? WHERE id=?''', (acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'], acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes'], uid))
+        acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes', 'acces_produits', 'acces_commandes']}
+        conn.execute('''UPDATE utilisateurs SET acces_dashboard=?, acces_saisie=?, acces_cloture=?, acces_appro=?, acces_historique=?, acces_clients=?, acces_paiements=?, acces_inventaire=?, acces_comptes=?, acces_produits=?, acces_commandes=? WHERE id=?''', (acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'], acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes'], acces['acces_produits'], acces['acces_commandes'], uid))
         conn.commit(); conn.close(); flash("✅ Autorisations mises à jour !", "success"); return redirect(url_for('comptes'))
     conn.close(); return render_template('modifier_autorisations.html', user=user)
 
 # ==========================================
-# 0.ter CRÉATION DE COMPTE DEPUIS LA CONNEXION (avec Code Maître)
+# 0.ter CRÉATION DE COMPTE DEPUIS LA CONNEXION
 # ==========================================
 @app.route('/creer_compte', methods=['GET', 'POST'])
 def creer_compte():
-    """
-    Permet de créer un compte depuis l'écran de connexion.
-    Nécessite un Code Maître pour prouver qu'on est le propriétaire.
-    Le premier compte créé a tous les accès (Super Admin).
-    """
-    # Si déjà connecté, rediriger vers comptes
     if 'user_id' in session:
         return redirect(url_for('comptes'))
     
     if request.method == 'POST':
-        code_maitre = request.form.get('code_maitre', '').strip()
-        
-        # Vérifier le code maître
-        if code_maitre != CODE_MAITRE:
-            flash("❌ Code maître incorrect.", "danger")
-            return render_template('creer_compte.html', code_valide=False)
-        
-        # Code maître correct → traiter le formulaire de création
-        nom = request.form.get('nom', '').strip()
-        role = request.form.get('role', '').strip()
-        mdp = request.form.get('mot_de_passe', '')
-        mdp2 = request.form.get('confirmation_mdp', '')
-        jours = ','.join(request.form.getlist('jours'))
-        
-        # Vérifications
-        if not nom or not role or not mdp:
-            flash("⚠️ Tous les champs obligatoires doivent être remplis.", "warning")
-            return render_template('creer_compte.html', code_valide=True)
-        
-        if mdp != mdp2:
-            flash("⚠️ Les mots de passe ne correspondent pas.", "warning")
-            return render_template('creer_compte.html', code_valide=True)
-        
-        if len(mdp) < 6:
-            flash("⚠️ Le mot de passe doit faire au moins 6 caractères.", "warning")
-            return render_template('creer_compte.html', code_valide=True)
-        
-        conn = get_db()
-        
-        # Vérifier si l'utilisateur existe déjà
-        if conn.execute('SELECT id FROM utilisateurs WHERE nom = ?', (nom,)).fetchone():
-            flash("⚠️ Ce nom d'utilisateur existe déjà.", "warning")
+        try:
+            code_maitre = request.form.get('code_maitre', '').strip()
+            if code_maitre != CODE_MAITRE:
+                flash("❌ Code maître incorrect.", "danger")
+                return render_template('creer_compte.html', code_valide=False)
+            
+            nom = request.form.get('nom', '').strip()
+            role = request.form.get('role', '').strip()
+            mdp = request.form.get('mot_de_passe', '')
+            mdp2 = request.form.get('confirmation_mdp', '')
+            jours = ','.join(request.form.getlist('jours'))
+            
+            if not nom:
+                return render_template('creer_compte.html', code_valide=True)
+            
+            if not nom or not role or not mdp:
+                flash("⚠️ Tous les champs obligatoires doivent être remplis.", "warning")
+                return render_template('creer_compte.html', code_valide=True)
+            if mdp != mdp2:
+                flash("⚠️ Les mots de passe ne correspondent pas.", "warning")
+                return render_template('creer_compte.html', code_valide=True)
+            if len(mdp) < 6:
+                flash("⚠️ Le mot de passe doit faire au moins 6 caractères.", "warning")
+                return render_template('creer_compte.html', code_valide=True)
+            
+            conn = get_db()
+            if conn.execute('SELECT id FROM utilisateurs WHERE nom = ?', (nom,)).fetchone():
+                flash("⚠️ Ce nom d'utilisateur existe déjà.", "warning")
+                conn.close()
+                return render_template('creer_compte.html', code_valide=True)
+            
+            nb_users = conn.execute('SELECT COUNT(*) as c FROM utilisateurs').fetchone()['c']
+            est_super_admin = (nb_users == 0)
+            
+            if est_super_admin:
+                acces = {
+                    'acces_dashboard': 1, 'acces_saisie': 1, 'acces_cloture': 1,
+                    'acces_appro': 1, 'acces_historique': 1, 'acces_clients': 1,
+                    'acces_paiements': 1, 'acces_inventaire': 1, 'acces_comptes': 1,
+                    'acces_produits': 1, 'acces_commandes': 1
+                }
+                role_final = 'Administrateur'
+            else:
+                acces = {
+                    'acces_dashboard': 1 if request.form.get('acces_dashboard') else 0,
+                    'acces_saisie': 1 if request.form.get('acces_saisie') else 0,
+                    'acces_cloture': 1 if request.form.get('acces_cloture') else 0,
+                    'acces_appro': 1 if request.form.get('acces_appro') else 0,
+                    'acces_historique': 1 if request.form.get('acces_historique') else 0,
+                    'acces_clients': 1 if request.form.get('acces_clients') else 0,
+                    'acces_paiements': 1 if request.form.get('acces_paiements') else 0,
+                    'acces_inventaire': 1 if request.form.get('acces_inventaire') else 0,
+                    'acces_comptes': 1 if request.form.get('acces_comptes') else 0,
+                    'acces_produits': 1 if request.form.get('acces_produits') else 0,
+                    'acces_commandes': 1 if request.form.get('acces_commandes') else 0,
+                }
+                role_final = role
+            
+            conn.execute('''INSERT INTO utilisateurs 
+                (nom, role, mot_de_passe, jours_travail, actif,
+                 acces_dashboard, acces_saisie, acces_cloture, acces_appro,
+                 acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes,
+                 acces_produits, acces_commandes)
+                VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                (nom, role_final, hash_password(mdp), jours,
+                 acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'],
+                 acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes'],
+                 acces['acces_produits'], acces['acces_commandes']))
+            conn.commit()
             conn.close()
+            
+            if est_super_admin:
+                flash(f"✅ Compte Administrateur créé ! Connectez-vous avec {nom}.", "success")
+            else:
+                flash(f"✅ Compte {nom} créé avec succès !", "success")
+            
+            return redirect(url_for('connexion'))
+            
+        except Exception as e:
+            flash(f"❌ Erreur : {str(e)}", "danger")
             return render_template('creer_compte.html', code_valide=True)
-        
-        # Vérifier s'il y a déjà des utilisateurs (pour déterminer si c'est le Super Admin)
-        nb_users = conn.execute('SELECT COUNT(*) as c FROM utilisateurs').fetchone()['c']
-        est_super_admin = (nb_users == 0)
-        
-        # Si Super Admin → tous les accès à 1, sinon → accès selon les cases cochées
-        if est_super_admin:
-            acces = {
-                'acces_dashboard': 1, 'acces_saisie': 1, 'acces_cloture': 1,
-                'acces_appro': 1, 'acces_historique': 1, 'acces_clients': 1,
-                'acces_paiements': 1, 'acces_inventaire': 1, 'acces_comptes': 1
-            }
-            role_final = 'Administrateur'
-        else:
-            acces = {k: 1 if request.form.get(k) else 0 for k in ['acces_dashboard', 'acces_saisie', 'acces_cloture', 'acces_appro', 'acces_historique', 'acces_clients', 'acces_paiements', 'acces_inventaire', 'acces_comptes']}
-            role_final = role
-        
-        conn.execute('''INSERT INTO utilisateurs 
-            (nom, role, mot_de_passe, jours_travail, actif,
-             acces_dashboard, acces_saisie, acces_cloture, acces_appro,
-             acces_historique, acces_clients, acces_paiements, acces_inventaire, acces_comptes)
-            VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (nom, role_final, hash_password(mdp), jours,
-             acces['acces_dashboard'], acces['acces_saisie'], acces['acces_cloture'], acces['acces_appro'],
-             acces['acces_historique'], acces['acces_clients'], acces['acces_paiements'], acces['acces_inventaire'], acces['acces_comptes']))
-        conn.commit(); conn.close()
-        
-        if est_super_admin:
-            flash(f"✅ Compte Administrateur créé ! Connectez-vous avec {nom}.", "success")
-        else:
-            flash(f"✅ Compte {nom} créé avec succès !", "success")
-        
-        return redirect(url_for('connexion'))
     
-    # GET : afficher le formulaire de code maître
     return render_template('creer_compte.html', code_valide=False)
 
 # ==========================================
@@ -363,7 +401,7 @@ def dashboard():
 # 2. PRODUITS
 # ==========================================
 @app.route('/produits')
-@login_required
+@check_access('acces_produits')
 def produits():
     conn = get_db()
     liste = conn.execute('SELECT p.*, COALESCE(s.quantite, 0) as stock_hall FROM produits p LEFT JOIN stocks s ON p.id = s.produit_id AND s.emplacement = "Hall" ORDER BY p.categorie, p.nom').fetchall()
@@ -371,14 +409,14 @@ def produits():
     return render_template('produits.html', produits=liste)
 
 @app.route('/telecharger_modele_produits')
-@login_required
+@check_access('acces_produits')
 def telecharger_modele_produits():
     df = pd.DataFrame({'Nom': ['Ex: HEINEKEN 33'], 'Categorie': ['AUTRES'], 'Prix Achat': [500], 'Prix Vente Hall': [700], 'Prix Kit': [2000], 'Prix Bar': [800], 'Stock': [100]})
     path = os.path.join(os.getcwd(), 'modele_import_produits.xlsx')
     df.to_excel(path, index=False); return send_file(path, as_attachment=True)
 
 @app.route('/importer_produits', methods=['POST'])
-@login_required
+@check_access('acces_produits')
 def importer_produits():
     try:
         f = request.files['fichier_excel']
@@ -405,7 +443,7 @@ def importer_produits():
     return redirect(url_for('produits'))
 
 @app.route('/modifier_produit/<int:pid>', methods=['GET', 'POST'])
-@login_required
+@check_access('acces_produits')
 def modifier_produit(pid):
     conn = get_db()
     if request.method == 'POST':
@@ -421,7 +459,7 @@ def modifier_produit(pid):
     return render_template('modifier_produit.html', produit=p)
 
 @app.route('/supprimer_produit/<int:pid>')
-@login_required
+@check_access('acces_produits')
 def supprimer_produit(pid):
     conn = get_db()
     nb_ventes = conn.execute('SELECT COUNT(*) as c FROM lignes_vente WHERE produit_id = ?', (pid,)).fetchone()['c']
@@ -521,7 +559,7 @@ def caisse():
 # 3.bis COMMANDES
 # ==========================================
 @app.route('/commandes', methods=['GET', 'POST'])
-@check_access('acces_clients')
+@check_access('acces_commandes')
 def commandes():
     conn = get_db()
     if request.method == 'POST':
