@@ -20,6 +20,7 @@
                     <th>Adresse</th>
                     <th class="text-end">Solde dû</th>
                     <th class="text-end">Plafond</th>
+                    <th class="text-end">Taux recouvrement</th>
                     <th class="text-center">Actions</th>
                 </tr>
             </thead>
@@ -37,10 +38,27 @@
                         {% endif %}
                     </td>
                     <td class="text-end">{{ fmt(c.plafond_credit) }} FCFA</td>
+                    <td class="text-end">
+                        {% if c.total_vendu_credit > 0 %}
+                            <div class="d-flex align-items-center justify-content-end gap-2">
+                                <div class="progress flex-grow-1" style="width: 80px; height: 8px;">
+                                    <div class="progress-bar {% if c.taux_recouvrement >= 75 %}bg-success{% elif c.taux_recouvrement >= 50 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ c.taux_recouvrement }}%"></div>
+                                </div>
+                                <strong class="{% if c.taux_recouvrement >= 75 %}text-success{% elif c.taux_recouvrement >= 50 %}text-warning{% else %}text-danger{% endif %}">{{ c.taux_recouvrement }}%</strong>
+                            </div>
+                            <small class="text-muted d-block text-end">{{ fmt(c.total_remboursements) }} / {{ fmt(c.total_vendu_credit) }} FCFA</small>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td class="text-center">
                         {% if c.solde_du > 0 %}
-                        <button type="button" class="btn btn-sm btn-primary" 
-                                onclick="ouvrirModalPaiement({{ c.id }}, '{{ c.nom }}', {{ c.solde_du }})">
+                        <!-- ✅ Bouton avec data-attributes pour éviter les problèmes JSON -->
+                        <button type="button" class="btn btn-sm btn-primary btn-payer" 
+                                data-client-id="{{ c.id }}"
+                                data-client-nom="{{ c.nom }}"
+                                data-client-dette="{{ c.solde_du }}"
+                                data-commandes="{{ c.commandes_impayees|tojson|safe }}">
                             <i class="fas fa-money-bill-wave"></i> Payer
                         </button>
                         {% else %}
@@ -78,9 +96,9 @@
     </div>
 </div>
 
-<!-- MODAL PAIEMENT (NOUVEAU) -->
+<!-- MODAL PAIEMENT -->
 <div class="modal fade" id="modalPaiement" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-hand-holding-usd"></i> Remboursement</h5>
@@ -89,29 +107,33 @@
             <form method="POST" action="{{ url_for('rembourser_client') }}">
                 <div class="modal-body">
                     <input type="hidden" name="client_id" id="payClientId">
-                    
                     <div class="alert alert-info text-center">
                         <h5 class="mb-1">Client : <strong id="payClientNom">-</strong></h5>
                         <h3 class="mb-0 text-danger">Dette : <span id="payClientDette">0</span> FCFA</h3>
                     </div>
 
-                    <!-- Option 1 : Totalité -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold"><i class="fas fa-file-invoice"></i> Commande à régler *</label>
+                        <select class="form-select form-select-lg" name="commande_id" id="selectCommande" required>
+                            <option value="">-- Choisir une commande --</option>
+                        </select>
+                        <small class="text-muted">Sélectionnez la commande (numéro CMD-XXX) que ce paiement va régler.</small>
+                    </div>
+
                     <div class="d-grid gap-2 mb-3">
                         <button type="button" class="btn btn-success btn-lg" onclick="payerTotalite()">
-                            <i class="fas fa-check-double"></i> Payer la TOTALITÉ
+                            <i class="fas fa-check-double"></i> Payer la TOTALITÉ de la dette
                         </button>
                     </div>
 
                     <hr>
                     <h6 class="text-muted text-center mb-3">OU Paiement Partiel</h6>
 
-                    <!-- Option 2 : Partiel -->
                     <div class="mb-3">
                         <label class="form-label fw-bold">Montant à payer (FCFA)</label>
                         <input type="number" class="form-control form-control-lg text-center" name="montant" id="payMontant" min="1" required>
                     </div>
 
-                    <!-- Mode de paiement -->
                     <div class="mb-3">
                         <label class="form-label fw-bold">Mode de réception</label>
                         <div class="d-flex gap-3 justify-content-center">
@@ -140,16 +162,56 @@
 </div>
 
 <script>
-function ouvrirModalPaiement(id, nom, dette) {
-    document.getElementById('payClientId').value = id;
-    document.getElementById('payClientNom').textContent = nom;
-    document.getElementById('payClientDette').textContent = dette.toLocaleString('fr-FR');
-    document.getElementById('payMontant').value = ''; // Reset
-    document.getElementById('payMontant').setAttribute('data-max', dette);
-    
-    const modal = new bootstrap.Modal(document.getElementById('modalPaiement'));
-    modal.show();
-}
+// ✅ Gestionnaire d'événements pour tous les boutons "Payer"
+document.addEventListener('DOMContentLoaded', function() {
+    const boutonsPayer = document.querySelectorAll('.btn-payer');
+    boutonsPayer.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const clientId = this.getAttribute('data-client-id');
+            const clientNom = this.getAttribute('data-client-nom');
+            const clientDette = parseFloat(this.getAttribute('data-client-dette'));
+            const commandesJson = this.getAttribute('data-commandes');
+            
+            // Parser le JSON des commandes
+            let commandesImpayees = [];
+            try {
+                commandesImpayees = JSON.parse(commandesJson);
+            } catch(e) {
+                console.error('Erreur parsing JSON:', e);
+            }
+            
+            // Remplir le modal
+            document.getElementById('payClientId').value = clientId;
+            document.getElementById('payClientNom').textContent = clientNom;
+            document.getElementById('payClientDette').textContent = clientDette.toLocaleString('fr-FR');
+            document.getElementById('payMontant').value = '';
+            document.getElementById('payMontant').setAttribute('data-max', clientDette);
+            
+            // Remplir le select des commandes
+            const select = document.getElementById('selectCommande');
+            select.innerHTML = '<option value="">-- Choisir une commande --</option>';
+            
+            if (commandesImpayees && commandesImpayees.length > 0) {
+                commandesImpayees.forEach(cmd => {
+                    const option = document.createElement('option');
+                    option.value = cmd.id;
+                    option.textContent = `${cmd.numero} | ${cmd.date} | ${cmd.total.toLocaleString('fr-FR')} FCFA`;
+                    option.dataset.montant = cmd.total;
+                    select.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "Aucune commande impayée (paiement global)";
+                select.appendChild(option);
+            }
+            
+            // Ouvrir le modal
+            const modal = new bootstrap.Modal(document.getElementById('modalPaiement'));
+            modal.show();
+        });
+    });
+});
 
 function payerTotalite() {
     const max = document.getElementById('payMontant').getAttribute('data-max');

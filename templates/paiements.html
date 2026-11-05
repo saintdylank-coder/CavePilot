@@ -1,55 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Paiements{% endblock %}
+{% block title %}Journal des paiements{% endblock %}
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fas fa-money-check-alt text-primary"></i> Paiements</h2>
-    <span class="text-muted"><i class="far fa-calendar-alt"></i> {{ date_jour }}</span>
+    <h2 class="mb-0"><i class="fas fa-receipt text-primary"></i> Journal des paiements de dettes</h2>
 </div>
 
-<div class="content-card mb-4" style="border-left: 5px solid #28a745;">
-    <h5 class="mb-3"><i class="fas fa-plus-circle"></i> Enregistrer un paiement</h5>
-    <form method="POST" action="{{ url_for('paiements') }}" class="row g-3">
-        <div class="col-md-3"><label class="form-label fw-bold">Date</label><input type="date" class="form-control" name="date_paiement" value="{{ date_jour }}" required></div>
-        <div class="col-md-3"><label class="form-label fw-bold">💵 Espèces (FCFA)</label><input type="number" class="form-control" name="montant_especes" min="0" value="0"></div>
-        <div class="col-md-3"><label class="form-label fw-bold">📱 Wave (FCFA)</label><input type="number" class="form-control" name="montant_wave" min="0" value="0"></div>
-        <div class="col-md-3"><label class="form-label fw-bold">📱 Orange Money (FCFA)</label><input type="number" class="form-control" name="montant_orange" min="0" value="0"></div>
-        <div class="col-12 text-end"><button type="submit" class="btn btn-success btn-lg"><i class="fas fa-save"></i> Enregistrer</button></div>
+<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
+    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtres</h5>
+    <form method="GET" action="{{ url_for('paiements') }}" class="row g-3">
+        <div class="col-md-4"><label class="form-label fw-bold">Du</label><input type="date" class="form-control" name="date_debut" value="{{ date_debut }}"></div>
+        <div class="col-md-4"><label class="form-label fw-bold">Au</label><input type="date" class="form-control" name="date_fin" value="{{ date_fin }}"></div>
+        <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Filtrer</button></div>
     </form>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Récapitulatif du jour</h5>
-            {% if stats %}
-            <ul class="list-group">
-                {% for s in stats %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{% if s.mode_paiement == 'especes' %}💵 Espèces{% elif s.mode_paiement == 'wave' %}📱 Wave{% elif s.mode_paiement == 'orange_money' %}📱 Orange Money{% endif %}</span>
-                    <span class="badge bg-primary rounded-pill">{{ fmt(s.total_montant) }} FCFA</span>
-                </li>
+<div class="row mb-4">
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #1565c0;"><div class="label"><i class="fas fa-receipt"></i> Nombre de paiements</div><div class="value">{{ nb_paiements }}</div></div></div>
+    <div class="col-md-6"><div class="stat-card" style="border-left-color: #2e7d32;"><div class="label"><i class="fas fa-coins"></i> Total encaissé</div><div class="value">{{ fmt(total_rembourse) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div></div></div>
+</div>
+
+<div class="content-card">
+    <h5 class="mb-3"><i class="fas fa-list"></i> Historique des paiements reçus</h5>
+    {% if historique %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-dark">
+                <tr><th>Date & Heure</th><th>Client</th><th>Commande</th><th>Mode</th><th class="text-end">Montant</th><th>Reçu par</th></tr>
+            </thead>
+            <tbody>
+                {% for p in historique %}
+                <tr>
+                    <td><strong>{{ p.date_remboursement }}</strong></td>
+                    <td>{{ p.client_nom or 'Inconnu' }}</td>
+                    <td><span class="badge bg-info">{{ p.numero_commande or '-' }}</span></td>
+                    <td>
+                        {% if p.mode_paiement == 'especes' %}<span class="badge bg-success">💵 Espèces</span>
+                        {% elif p.mode_paiement == 'wave' %}<span class="badge bg-primary">📱 Wave</span>
+                        {% else %}<span class="badge bg-warning text-dark">📱 Orange</span>{% endif %}
+                    </td>
+                    <td class="text-end fw-bold">{{ fmt(p.montant) }} FCFA</td>
+                    <td><small>{{ p.utilisateur_nom or '-' }}</small></td>
+                </tr>
                 {% endfor %}
-            </ul>
-            {% else %}<div class="alert alert-info">Aucun paiement aujourd'hui.</div>{% endif %}
-        </div>
+            </tbody>
+        </table>
     </div>
-    <div class="col-md-6">
-        <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-history"></i> Historique du jour</h5>
-            {% if historique %}
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead><tr><th>Heure</th><th>Mode</th><th class="text-end">Montant</th></tr></thead>
-                    <tbody>
-                        {% for p in historique %}
-                        <tr><td><small>{{ p.date_paiement[11:] }}</small></td><td>{{ p.mode_paiement }}</td><td class="text-end fw-bold">{{ fmt(p.montant) }} FCFA</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}<div class="alert alert-info">Aucun historique.</div>{% endif %}
-        </div>
-    </div>
+    {% else %}<div class="alert alert-info text-center">Aucun paiement sur cette période.</div>{% endif %}
 </div>
 {% endblock %}

@@ -1,123 +1,145 @@
 {% extends "base.html" %}
-{% block title %}Historique & Consultation{% endblock %}
+{% block title %}Historique{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<style>
+.barre-action {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: white;
+    padding: 15px 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.total-box {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(21, 101, 192, 0.3);
+}
+.montant-ligne { font-weight: bold; color: #1565c0; text-align: right; }
+.date-separator { background-color: #e3f2fd; font-weight: bold; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0"><i class="fas fa-history text-primary"></i> Historique & Consultation</h2>
-    <span class="text-muted">{{ nb_ventes }} vente(s)</span>
 </div>
 
-<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
-    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtres</h5>
-    <form method="GET" action="{{ url_for('historique') }}" class="row g-3">
-        <div class="col-md-3"><label class="form-label fw-bold">Du</label><input type="date" class="form-control" name="date_debut" value="{{ date_debut }}"></div>
-        <div class="col-md-3"><label class="form-label fw-bold">Au</label><input type="date" class="form-control" name="date_fin" value="{{ date_fin }}"></div>
+<!-- BARRE DE FILTRES (comme Ventes du jour) -->
+<div class="barre-action">
+    <div class="row g-3 align-items-end">
         <div class="col-md-3">
-            <label class="form-label fw-bold">Mode</label>
-            <select class="form-select" name="mode">
-                <option value="">Tous</option>
-                <option value="especes" {% if mode_filtre == 'especes' %}selected{% endif %}>💵 Espèces</option>
-                <option value="wave" {% if mode_filtre == 'wave' %}selected{% endif %}>📱 Wave</option>
-                <option value="orange_money" {% if mode_filtre == 'orange_money' %}selected{% endif %}>📱 Orange Money</option>
-                <option value="credit" {% if mode_filtre == 'credit' %}selected{% endif %}>💳 Crédit</option>
+            <label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Du</label>
+            <input type="date" class="form-control form-control-sm" id="filterDateDebut" value="{{ date_debut }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Au</label>
+            <input type="date" class="form-control form-control-sm" id="filterDateFin" value="{{ date_fin }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label>
+            <select class="form-select form-select-sm" id="filterCategorie">
+                <option value="">Toutes</option>
+                {% for cat in categories %}
+                <option value="{{ cat.categorie }}" {% if categorie_filtre == cat.categorie %}selected{% endif %}>{{ cat.categorie }}</option>
+                {% endfor %}
             </select>
         </div>
-        <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Rechercher</button></div>
-    </form>
+        <div class="col-md-2">
+            <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Produit</label>
+            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerLignes()">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-primary btn-sm w-100" onclick="appliquerFiltres()">
+                <i class="fas fa-search"></i> Filtrer
+            </button>
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-md-6">
+            <small class="text-muted"><i class="fas fa-list"></i> <span id="countLignes">{{ nb_lignes }}</span> ligne(s)</small>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="total-box d-inline-block px-4">
+                <i class="fas fa-coins"></i> Total : {{ fmt(total_global) }} FCFA
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6"><div class="stat-card" style="border-left-color: #1565c0;"><div class="label"><i class="fas fa-receipt"></i> Nombre de ventes</div><div class="value">{{ nb_ventes }}</div></div></div>
-    <div class="col-md-6"><div class="stat-card" style="border-left-color: #2e7d32;"><div class="label"><i class="fas fa-coins"></i> Total CA</div><div class="value">{{ fmt(total_ventes) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div></div></div>
-</div>
-
+<!-- TABLEAU IDENTIQUE À VENTES DU JOUR -->
 <div class="content-card">
-    <h5 class="mb-3"><i class="fas fa-list"></i> Liste des ventes</h5>
-    {% if ventes %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
+    {% if lignes %}
+    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+        <table class="table table-bordered align-middle table-sm" id="tableHistorique">
             <thead class="table-dark">
-                <tr><th>Date & Heure</th><th>Client</th><th class="text-center">Nb Produits</th><th>Mode</th><th class="text-end">Montant</th></tr>
+                <tr>
+                    <th style="width: 12%;">Date</th>
+                    <th style="width: 28%;">Produit</th>
+                    <th style="width: 10%;">Catégorie</th>
+                    <th style="width: 12%;" class="text-center">Qté Hall</th>
+                    <th style="width: 12%;" class="text-center">Qté Kit</th>
+                    <th style="width: 12%;" class="text-center">Qté Bar</th>
+                    <th style="width: 14%;" class="text-end">Montant</th>
+                </tr>
             </thead>
             <tbody>
-                {% for v in ventes %}
-                <tr>
-                    <td><strong>{{ v.date_heure }}</strong></td>
-                    <td>{{ v.client_nom or 'Comptoir' }}</td>
-                    <td class="text-center"><span class="badge bg-info">{{ v.nb_produits }}</span></td>
-                    <td>
-                        {% if v.mode_paiement == 'especes' %}<span class="badge bg-success">💵 Espèces</span>
-                        {% elif v.mode_paiement == 'wave' %}<span class="badge bg-primary">📱 Wave</span>
-                        {% elif v.mode_paiement == 'orange_money' %}<span class="badge bg-warning text-dark">📱 Orange</span>
-                        {% else %}<span class="badge bg-danger">💳 Crédit</span>{% endif %}
-                    </td>
-                    <td class="text-end fw-bold">{{ fmt(v.total) }} FCFA</td>
+                {% for l in lignes %}
+                <tr class="ligne-historique" 
+                    data-date="{{ l.date_vente }}"
+                    data-categorie="{{ l.categorie }}"
+                    data-produit="{{ l.produit_nom|lower }}">
+                    <td><small><strong>{{ l.date_vente }}</strong></small></td>
+                    <td><strong>{{ l.produit_nom }}</strong></td>
+                    <td><span class="badge bg-secondary">{{ l.categorie }}</span></td>
+                    <td class="text-center">{{ l.qte_hall if l.qte_hall > 0 else '-' }}</td>
+                    <td class="text-center">{{ l.qte_kit if l.qte_kit > 0 else '-' }}</td>
+                    <td class="text-center">{{ l.qte_bar if l.qte_bar > 0 else '-' }}</td>
+                    <td class="montant-ligne">{{ fmt(l.total_ligne) }} FCFA</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}<div class="alert alert-info text-center">Aucune vente trouvée.</div>{% endif %}
-</div>
-{% endblock %}{% extends "base.html" %}
-{% block title %}Historique & Consultation{% endblock %}
-{% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fas fa-history text-primary"></i> Historique & Consultation</h2>
-    <span class="text-muted">{{ nb_ventes }} vente(s)</span>
-</div>
-
-<div class="content-card mb-4" style="border-left: 5px solid #1890ff;">
-    <h5 class="mb-3"><i class="fas fa-filter"></i> Filtres</h5>
-    <form method="GET" action="{{ url_for('historique') }}" class="row g-3">
-        <div class="col-md-3"><label class="form-label fw-bold">Du</label><input type="date" class="form-control" name="date_debut" value="{{ date_debut }}"></div>
-        <div class="col-md-3"><label class="form-label fw-bold">Au</label><input type="date" class="form-control" name="date_fin" value="{{ date_fin }}"></div>
-        <div class="col-md-3">
-            <label class="form-label fw-bold">Mode</label>
-            <select class="form-select" name="mode">
-                <option value="">Tous</option>
-                <option value="especes" {% if mode_filtre == 'especes' %}selected{% endif %}>💵 Espèces</option>
-                <option value="wave" {% if mode_filtre == 'wave' %}selected{% endif %}>📱 Wave</option>
-                <option value="orange_money" {% if mode_filtre == 'orange_money' %}selected{% endif %}>📱 Orange Money</option>
-                <option value="credit" {% if mode_filtre == 'credit' %}selected{% endif %}>💳 Crédit</option>
-            </select>
-        </div>
-        <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> Rechercher</button></div>
-    </form>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-6"><div class="stat-card" style="border-left-color: #1565c0;"><div class="label"><i class="fas fa-receipt"></i> Nombre de ventes</div><div class="value">{{ nb_ventes }}</div></div></div>
-    <div class="col-md-6"><div class="stat-card" style="border-left-color: #2e7d32;"><div class="label"><i class="fas fa-coins"></i> Total CA</div><div class="value">{{ fmt(total_ventes) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div></div></div>
-</div>
-
-<div class="content-card">
-    <h5 class="mb-3"><i class="fas fa-list"></i> Liste des ventes</h5>
-    {% if ventes %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr><th>Date & Heure</th><th>Client</th><th class="text-center">Nb Produits</th><th>Mode</th><th class="text-end">Montant</th></tr>
-            </thead>
-            <tbody>
-                {% for v in ventes %}
-                <tr>
-                    <td><strong>{{ v.date_heure }}</strong></td>
-                    <td>{{ v.client_nom or 'Comptoir' }}</td>
-                    <td class="text-center"><span class="badge bg-info">{{ v.nb_produits }}</span></td>
-                    <td>
-                        {% if v.mode_paiement == 'especes' %}<span class="badge bg-success">💵 Espèces</span>
-                        {% elif v.mode_paiement == 'wave' %}<span class="badge bg-primary">📱 Wave</span>
-                        {% elif v.mode_paiement == 'orange_money' %}<span class="badge bg-warning text-dark">📱 Orange</span>
-                        {% else %}<span class="badge bg-danger">💳 Crédit</span>{% endif %}
-                    </td>
-                    <td class="text-end fw-bold">{{ fmt(v.total) }} FCFA</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle"></i> Aucune vente sur cette période.
     </div>
-    {% else %}<div class="alert alert-info text-center">Aucune vente trouvée.</div>{% endif %}
+    {% endif %}
 </div>
+
+<script>
+function filtrerLignes() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('.ligne-historique');
+    let count = 0;
+    rows.forEach(row => {
+        const produit = row.getAttribute('data-produit');
+        if (produit.includes(search)) {
+            row.style.display = '';
+            count++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    document.getElementById('countLignes').textContent = count;
+}
+
+function appliquerFiltres() {
+    const dateDebut = document.getElementById('filterDateDebut').value;
+    const dateFin = document.getElementById('filterDateFin').value;
+    const categorie = document.getElementById('filterCategorie').value;
+    
+    let url = '{{ url_for("historique") }}?date_debut=' + dateDebut + '&date_fin=' + dateFin;
+    if (categorie) url += '&categorie=' + categorie;
+    
+    window.location.href = url;
+}
+</script>
 {% endblock %}

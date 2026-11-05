@@ -163,7 +163,9 @@ def modifier_autorisations(uid):
 @check_access('acces_dashboard')
 def dashboard():
     conn = get_db()
-    today = datetime.now().strftime('%Y-%m-%d'); mois = today[:7]
+    today = datetime.now().strftime('%Y-%m-%d')
+    mois = today[:7]
+    
     stats = {
         'total_produits': conn.execute('SELECT COUNT(*) as c FROM produits').fetchone()['c'],
         'stock_hall': conn.execute('SELECT COALESCE(SUM(quantite), 0) as s FROM stocks WHERE emplacement="Hall"').fetchone()['s'],
@@ -173,30 +175,102 @@ def dashboard():
         'ventes_jour': conn.execute('SELECT COALESCE(SUM(total), 0) as v FROM ventes WHERE date(date_heure) = ?', (today,)).fetchone()['v'],
         'ventes_mois': fmt(conn.execute('SELECT COALESCE(SUM(total), 0) as v FROM ventes WHERE strftime("%Y-%m", date_heure) = ?', (mois,)).fetchone()['v']),
     }
-    mauvais_payeurs = conn.execute('SELECT nom, solde_du, plafond_credit FROM clients WHERE solde_du > 0 ORDER BY solde_du DESC LIMIT 5').fetchall()
+    
+    marge_mois = conn.execute('SELECT COALESCE(SUM(marge_totale), 0) as total FROM approvisionnements WHERE strftime("%Y-%m", date_appro) = ?', (mois,)).fetchone()['total']
+    stats['marge_mois'] = fmt(marge_mois)
+    
+    total_rembourse = conn.execute('SELECT COALESCE(SUM(montant), 0) as total FROM remboursements').fetchone()['total']
+    credits_encours = conn.execute('SELECT COALESCE(SUM(solde_du), 0) as total FROM clients WHERE solde_du > 0').fetchone()['total']
+    total_vendu_credit = total_rembourse + credits_encours
+    stats['taux_recouvrement'] = round((total_rembourse / total_vendu_credit) * 100, 1) if total_vendu_credit > 0 else 0
+    stats['total_vendu_credit'] = fmt(total_vendu_credit)
+    stats['total_rembourse'] = fmt(total_rembourse)
+    
+    total_ecarts_today = conn.execute('SELECT COALESCE(SUM(montant_ecart), 0) as total FROM ecarts_caisse WHERE date_ecart = ?', (today,)).fetchone()['total']
+    stats['total_ecarts_today'] = fmt(total_ecarts_today)
+    
     labels_jours, data_ventes = [], []
     for i in range(6, -1, -1):
         d = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
         labels_jours.append((datetime.now() - timedelta(days=i)).strftime('%d/%m'))
         data_ventes.append(conn.execute('SELECT COALESCE(SUM(total), 0) as v FROM ventes WHERE date(date_heure) = ?', (d,)).fetchone()['v'])
+    
     stats_paiement = conn.execute('SELECT mode_paiement, SUM(total) as total_montant FROM ventes WHERE strftime("%Y-%m", date_heure) = ? GROUP BY mode_paiement', (mois,)).fetchall()
     total_gen = sum(s['total_montant'] for s in stats_paiement)
-    labels_p, data_p, data_pct, couleurs_p = [], [], [], []
+    labels_p, data_p, couleurs_p = [], [], []
     cmap = {'especes': '#28a745', 'wave': '#0d6efd', 'orange_money': '#fd7e14', 'credit': '#dc3545'}
     for s in stats_paiement:
         pct = round((s['total_montant'] / total_gen * 100), 1) if total_gen > 0 else 0
-        labels_p.append(f"{s['mode_paiement'].replace('_', ' ').title()} ({pct}%)"); data_p.append(s['total_montant']); data_pct.append(pct); couleurs_p.append(cmap.get(s['mode_paiement'], '#6c757d'))
+        labels_p.append(f"{s['mode_paiement'].replace('_', ' ').title()} ({pct}%)")
+        data_p.append(s['total_montant'])
+        couleurs_p.append(cmap.get(s['mode_paiement'], '#6c757d'))
+    
     top_cats = conn.execute('SELECT p.categorie, SUM(lv.montant_kit) as total_ca FROM lignes_vente lv JOIN produits p ON lv.produit_id = p.id JOIN ventes v ON lv.vente_id = v.id WHERE strftime("%Y-%m", v.date_heure) = ? GROUP BY p.categorie ORDER BY total_ca DESC LIMIT 3', (mois,)).fetchall()
-    labels_c, data_c, couleurs_c = [], [], ['#1890ff', '#52c41a', '#fa8c16']
-    details_cats = {}
+    top_cats_data = []
     for c in top_cats:
-        labels_c.append(c['categorie']); data_c.append(c['total_ca'])
         prods = conn.execute('SELECT p.nom, SUM(lv.quantite) as total_qte, SUM(lv.montant_kit) as total_ca FROM lignes_vente lv JOIN produits p ON lv.produit_id = p.id JOIN ventes v ON lv.vente_id = v.id WHERE p.categorie = ? AND strftime("%Y-%m", v.date_heure) = ? GROUP BY p.id ORDER BY total_ca DESC LIMIT 5', (c['categorie'], mois)).fetchall()
-        details_cats[c['categorie']] = [{'nom': p['nom'], 'qte': p['total_qte'], 'ca': p['total_ca'], 'pct': round((p['total_ca']/c['total_ca']*100), 1) if c['total_ca']>0 else 0} for p in prods]
-    alertes_stock = conn.execute('SELECT p.nom, s.quantite, p.seuil_alerte FROM stocks s JOIN produits p ON s.produit_id = p.id WHERE s.emplacement = "Hall" AND s.quantite <= p.seuil_alerte ORDER BY s.quantite ASC LIMIT 5').fetchall()
-    dernieres_ventes = conn.execute('SELECT v.date_heure, v.total, v.mode_paiement, c.nom as client_nom, COUNT(lv.id) as nb_produits FROM ventes v LEFT JOIN clients c ON v.client_id = c.id LEFT JOIN lignes_vente lv ON v.id = lv.vente_id GROUP BY v.id ORDER BY v.date_heure DESC LIMIT 10').fetchall()
+        top_cats_data.append({'categorie': c['categorie'], 'total_ca': c['total_ca'], 'produits': prods})
+    
+    # ✅ Alertes stock avec tri par criticité (critique d'abord)
+    top_ventes = conn.execute('''
+        SELECT p.id, SUM(lv.quantite) as total_vendu
+        FROM lignes_vente lv
+        JOIN ventes v ON lv.vente_id = v.id
+        JOIN produits p ON lv.produit_id = p.id
+        WHERE strftime("%Y-%m", v.date_heure) = ?
+        GROUP BY p.id
+        ORDER BY total_vendu DESC
+        LIMIT 20
+    ''', (mois,)).fetchall()
+    top_ventes_dict = {row['id']: row['total_vendu'] for row in top_ventes}
+    max_ventes = max(top_ventes_dict.values()) if top_ventes_dict else 1
+    
+    alertes_stock_raw = conn.execute('''
+        SELECT p.id, p.nom, p.categorie, s.quantite, p.seuil_alerte
+        FROM stocks s 
+        JOIN produits p ON s.produit_id = p.id 
+        WHERE s.emplacement = "Hall" AND s.quantite <= p.seuil_alerte 
+        ORDER BY p.categorie
+    ''').fetchall()
+    
+    alertes_par_categorie = {'AUTRES': [], 'VINS': [], 'CHAMPAGNES': []}
+    for a in alertes_stock_raw:
+        cat = a['categorie'] or 'AUTRES'
+        if cat in alertes_par_categorie:
+            vendu = top_ventes_dict.get(a['id'], 0)
+            ratio = vendu / max_ventes if max_ventes > 0 else 0
+            if ratio >= 0.5:
+                criticite = 'critique'
+                ordre_criticite = 1
+            elif ratio >= 0.2:
+                criticite = 'important'
+                ordre_criticite = 2
+            else:
+                criticite = 'faible'
+                ordre_criticite = 3
+            alertes_par_categorie[cat].append({
+                'id': a['id'], 'nom': a['nom'], 'quantite': a['quantite'], 
+                'seuil_alerte': a['seuil_alerte'], 'total_vendu': vendu,
+                'criticite': criticite, 'ordre_criticite': ordre_criticite
+            })
+    
+    # ✅ Tri par criticité (critique d'abord) puis par quantité vendue
+    for cat in alertes_par_categorie:
+        alertes_par_categorie[cat].sort(key=lambda x: (x['ordre_criticite'], -x['total_vendu']))
+    
+    date_debut_ecart = request.args.get('date_debut_ecart', today)
+    date_fin_ecart = request.args.get('date_fin_ecart', today)
+    ecarts = conn.execute('SELECT e.*, u.nom as utilisateur_nom FROM ecarts_caisse e LEFT JOIN utilisateurs u ON e.utilisateur_id = u.id WHERE e.date_ecart BETWEEN ? AND ? ORDER BY e.date_ecart DESC, e.heure_ecart DESC', (date_debut_ecart, date_fin_ecart)).fetchall()
+    total_manques = conn.execute('SELECT COALESCE(SUM(montant_ecart), 0) as total FROM ecarts_caisse WHERE date_ecart BETWEEN ? AND ? AND montant_ecart < 0', (date_debut_ecart, date_fin_ecart)).fetchone()['total']
+    total_surplus = conn.execute('SELECT COALESCE(SUM(montant_ecart), 0) as total FROM ecarts_caisse WHERE date_ecart BETWEEN ? AND ? AND montant_ecart > 0', (date_debut_ecart, date_fin_ecart)).fetchone()['total']
+    
     conn.close()
-    return render_template('dashboard.html', date_jour=datetime.now().strftime('%d/%m/%Y'), mauvais_payeurs=mauvais_payeurs, labels_jours=labels_jours, data_ventes=data_ventes, labels_paiement=labels_p, data_paiement=data_p, data_pourcentage=data_pct, couleurs_paiement=couleurs_p, labels_cat=labels_c, data_cat=data_c, couleurs_cat=couleurs_c, details_categories=details_cats, alertes_stock=alertes_stock, dernieres_ventes=dernieres_ventes, **stats)
+    return render_template('dashboard.html', date_jour=datetime.now().strftime('%d/%m/%Y'),
+                           labels_jours=labels_jours, data_ventes=data_ventes, 
+                           labels_paiement=labels_p, data_paiement=data_p, couleurs_paiement=couleurs_p, 
+                           top_cats_data=top_cats_data, alertes_par_categorie=alertes_par_categorie,
+                           ecarts=ecarts, date_debut_ecart=date_debut_ecart, date_fin_ecart=date_fin_ecart,
+                           total_manques=total_manques, total_surplus=total_surplus, **stats)
 
 # ==========================================
 # 2. PRODUITS
@@ -253,16 +327,10 @@ def modifier_produit(pid):
         prix_kit = request.form.get('prix_kit', 0) or 0
         prix_bar = request.form.get('prix_bar', 0) or 0
         existe = conn.execute('SELECT id FROM produits WHERE nom = ? AND id != ?', (nom, pid)).fetchone()
-        if existe:
-            flash("⚠️ Ce nom de produit existe déjà.", "warning")
-            conn.close()
-            return redirect(url_for('modifier_produit', pid=pid))
+        if existe: flash("⚠️ Ce nom existe déjà.", "warning"); conn.close(); return redirect(url_for('modifier_produit', pid=pid))
         conn.execute('UPDATE produits SET nom=?, prix_vente_hall=?, prix_kit=?, prix_bar=? WHERE id=?', (nom, prix_hall, prix_kit, prix_bar, pid))
-        conn.commit(); conn.close()
-        flash("✅ Produit modifié !", "success")
-        return redirect(url_for('produits'))
-    p = conn.execute('SELECT * FROM produits WHERE id = ?', (pid,)).fetchone()
-    conn.close()
+        conn.commit(); conn.close(); flash("✅ Produit modifié !", "success"); return redirect(url_for('produits'))
+    p = conn.execute('SELECT * FROM produits WHERE id = ?', (pid,)).fetchone(); conn.close()
     return render_template('modifier_produit.html', produit=p)
 
 @app.route('/supprimer_produit/<int:pid>')
@@ -270,15 +338,12 @@ def modifier_produit(pid):
 def supprimer_produit(pid):
     conn = get_db()
     nb_ventes = conn.execute('SELECT COUNT(*) as c FROM lignes_vente WHERE produit_id = ?', (pid,)).fetchone()['c']
-    if nb_ventes > 0:
-        flash(f"⚠️ Impossible de supprimer : ce produit a été vendu {nb_ventes} fois.", "danger")
+    if nb_ventes > 0: flash(f"⚠️ Produit vendu {nb_ventes} fois, suppression impossible.", "danger")
     else:
         conn.execute('DELETE FROM stocks WHERE produit_id = ?', (pid,))
         conn.execute('DELETE FROM produits WHERE id = ?', (pid,))
-        conn.commit()
-        flash("✅ Produit supprimé.", "success")
-    conn.close()
-    return redirect(url_for('produits'))
+        conn.commit(); flash("✅ Produit supprimé.", "success")
+    conn.close(); return redirect(url_for('produits'))
 
 # ==========================================
 # 3. VENTES DU JOUR
@@ -288,16 +353,19 @@ def supprimer_produit(pid):
 def caisse():
     conn = get_db()
     today = datetime.now().strftime('%Y-%m-%d')
-    cloture = conn.execute('SELECT id FROM clotures_caisse WHERE date_cloture = ?', (today,)).fetchone()
+    date_saisie = request.args.get('date_saisie', today)
+    
+    cloture = conn.execute('SELECT id FROM clotures_caisse WHERE date_cloture = ?', (date_saisie,)).fetchone()
     caisse_fermee = cloture is not None
     
     if request.method == 'POST':
-        if caisse_fermee:
-            flash("⛔ La caisse est déjà clôturée.", "danger"); conn.close(); return redirect(url_for('caisse'))
+        date_saisie_post = request.form.get('date_saisie', today)
+        cloture_post = conn.execute('SELECT id FROM clotures_caisse WHERE date_cloture = ?', (date_saisie_post,)).fetchone()
+        if cloture_post:
+            flash("⛔ La caisse de ce jour est déjà clôturée.", "danger"); conn.close(); return redirect(url_for('caisse'))
         
         dh = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        total_vente = 0
-        lignes = []
+        total_vente = 0; lignes = []
         
         for p in conn.execute('SELECT * FROM produits').fetchall():
             pid = p['id']
@@ -323,29 +391,26 @@ def caisse():
                         lignes.append({'pid': pid, 'qte': qte_bar, 'prix': p['prix_bar'] or p['prix_vente_hall'], 'mt': mt_bar, 'type': 'bar'})
                         conn.execute('UPDATE stocks SET quantite = quantite - ? WHERE produit_id = ? AND emplacement = "Hall"', (qte_bar, pid))
 
-        if total_vente == 0:
-            flash("⚠️ Aucune vente à enregistrer.", "warning"); conn.close(); return redirect(url_for('caisse'))
+        if total_vente == 0: flash("⚠️ Aucune vente.", "warning"); conn.close(); return redirect(url_for('caisse', date_saisie=date_saisie_post))
 
         pay_especes = float(request.form.get('montant_especes', 0) or 0)
         pay_wave = float(request.form.get('montant_wave', 0) or 0)
         pay_orange = float(request.form.get('montant_orange', 0) or 0)
-        
         motif_ecart = request.form.get('motif_ecart', '').strip()
         total_paye = pay_especes + pay_wave + pay_orange
         ecart = total_paye - total_vente
         
         if abs(ecart) > 0 and not motif_ecart:
-            flash("⚠️ Un motif est obligatoire en cas d'écart de caisse.", "danger")
-            conn.close()
-            return redirect(url_for('caisse'))
+            flash("⚠️ Motif obligatoire en cas d'écart.", "danger"); conn.close(); return redirect(url_for('caisse', date_saisie=date_saisie_post))
+
+        if abs(ecart) > 0 and motif_ecart:
+            conn.execute('INSERT INTO ecarts_caisse (date_ecart, heure_ecart, montant_ecart, motif, utilisateur_id) VALUES (?, ?, ?, ?, ?)', (date_saisie_post, datetime.now().strftime('%H:%M:%S'), ecart, motif_ecart, session['user_id']))
 
         modes_paiement = []
         if pay_especes > 0: modes_paiement.append(('especes', pay_especes))
         if pay_wave > 0: modes_paiement.append(('wave', pay_wave))
         if pay_orange > 0: modes_paiement.append(('orange_money', pay_orange))
-        
-        if not modes_paiement:
-            modes_paiement.append(('especes', total_vente))
+        if not modes_paiement: modes_paiement.append(('especes', total_vente))
 
         premier_mode = True
         for mode, montant_mode in modes_paiement:
@@ -353,20 +418,20 @@ def caisse():
             vid = cur.lastrowid
             if premier_mode:
                 for l in lignes:
-                    conn.execute('INSERT INTO lignes_vente (vente_id, produit_id, quantite, prix_unitaire, montant_kit) VALUES (?, ?, ?, ?, ?)', (vid, l['pid'], l['qte'], l['prix'], l['mt']))
+                    conn.execute('INSERT INTO lignes_vente (vente_id, produit_id, quantite, prix_unitaire, montant_kit, type_vente) VALUES (?, ?, ?, ?, ?, ?)', (vid, l['pid'], l['qte'], l['prix'], l['mt'], l['type']))
                 premier_mode = False
 
         conn.commit(); conn.close()
-        flash(f"✅ Vente enregistrée ! Total: {fmt(total_vente)} FCFA", "success")
-        return redirect(url_for('caisse'))
+        flash(f"✅ Vente enregistrée pour le {date_saisie_post} ! Total: {fmt(total_vente)} FCFA", "success")
+        return redirect(url_for('caisse', date_saisie=date_saisie_post))
 
     prods = conn.execute('SELECT p.*, COALESCE(s.quantite, 0) as stock_hall FROM produits p LEFT JOIN stocks s ON p.id = s.produit_id AND s.emplacement = "Hall" ORDER BY nom').fetchall()
-    tj = conn.execute('SELECT COALESCE(SUM(total), 0) as v FROM ventes WHERE date(date_heure) = ?', (today,)).fetchone()['v']
+    tj = conn.execute('SELECT COALESCE(SUM(total), 0) as v FROM ventes WHERE date(date_heure) = ?', (date_saisie,)).fetchone()['v']
     conn.close()
-    return render_template('caisse.html', produits=prods, total_jour=tj, date_jour=today, caisse_fermee=caisse_fermee)
+    return render_template('caisse.html', produits=prods, total_jour=tj, date_jour=today, caisse_fermee=caisse_fermee, date_saisie=date_saisie)
 
 # ==========================================
-# 3.bis COMMANDES
+# 3.bis COMMANDES (avec numérotation par client)
 # ==========================================
 @app.route('/commandes', methods=['GET', 'POST'])
 @check_access('acces_clients')
@@ -374,8 +439,17 @@ def commandes():
     conn = get_db()
     if request.method == 'POST':
         client_id = request.form.get('client_id')
-        if not client_id:
-            flash("⚠️ Vous devez sélectionner un client.", "danger"); conn.close(); return redirect(url_for('commandes'))
+        if not client_id: flash("⚠️ Client obligatoire.", "danger"); conn.close(); return redirect(url_for('commandes'))
+        
+        # ✅ Récupérer le nom du client pour générer le préfixe
+        client = conn.execute('SELECT nom FROM clients WHERE id = ?', (client_id,)).fetchone()
+        nom_client = client['nom'].strip() if client else 'CLI'
+        
+        # ✅ Générer le préfixe : 3 premières lettres du nom en majuscules
+        prefixe = nom_client[:3].upper().replace(' ', '')
+        if len(prefixe) < 3:
+            prefixe = prefixe.ljust(3, 'X')
+        
         dh = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         total_commande = 0; lignes = []
         for p in conn.execute('SELECT * FROM produits').fetchall():
@@ -386,15 +460,20 @@ def commandes():
                 montant = qte * prix; total_commande += montant
                 lignes.append({'pid': pid, 'qte': qte, 'prix': prix, 'mt': montant})
                 conn.execute('UPDATE stocks SET quantite = quantite - ? WHERE produit_id = ? AND emplacement = "Hall"', (qte, pid))
-        if total_commande == 0:
-            flash("⚠️ Aucune commande.", "warning"); conn.close(); return redirect(url_for('commandes'))
-        cur = conn.execute('INSERT INTO commandes (date_commande, client_id, total, statut, utilisateur_id) VALUES (?, ?, ?, "Impayée", ?)', (dh, client_id, total_commande, session['user_id']))
+        if total_commande == 0: flash("⚠️ Aucune commande.", "warning"); conn.close(); return redirect(url_for('commandes'))
+        
+        # ✅ Générer le numéro de commande unique par client
+        dernier_numero = conn.execute(
+            'SELECT MAX(CAST(SUBSTR(numero_commande, 9) AS INTEGER)) as max_num FROM commandes WHERE numero_commande LIKE ?',
+            (f'CMD-{prefixe}-%',)
+        ).fetchone()['max_num']
+        nouveau_numero = f"CMD-{prefixe}-{(dernier_numero or 0) + 1:03d}"
+        
+        cur = conn.execute('INSERT INTO commandes (date_commande, client_id, total, statut, utilisateur_id, numero_commande) VALUES (?, ?, ?, "Impayée", ?, ?)', (dh, client_id, total_commande, session['user_id'], nouveau_numero))
         cmd_id = cur.lastrowid
-        for l in lignes:
-            conn.execute('INSERT INTO lignes_commande (commande_id, produit_id, quantite, prix_unitaire, montant) VALUES (?, ?, ?, ?, ?)', (cmd_id, l['pid'], l['qte'], l['prix'], l['mt']))
+        for l in lignes: conn.execute('INSERT INTO lignes_commande (commande_id, produit_id, quantite, prix_unitaire, montant) VALUES (?, ?, ?, ?, ?)', (cmd_id, l['pid'], l['qte'], l['prix'], l['mt']))
         conn.execute('UPDATE clients SET solde_du = solde_du + ? WHERE id = ?', (total_commande, client_id))
-        conn.commit(); conn.close()
-        flash(f"✅ Commande enregistrée !", "success"); return redirect(url_for('commandes'))
+        conn.commit(); conn.close(); flash(f"✅ Commande {nouveau_numero} enregistrée !", "success"); return redirect(url_for('commandes'))
     prods = conn.execute('SELECT p.*, COALESCE(s.quantite, 0) as stock_hall FROM produits p LEFT JOIN stocks s ON p.id = s.produit_id AND s.emplacement = "Hall" ORDER BY nom').fetchall()
     clients = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall(); conn.close()
     return render_template('commandes.html', produits=prods, clients=clients)
@@ -467,13 +546,32 @@ def approvisionnement():
 @check_access('acces_historique')
 def historique():
     conn = get_db()
-    db = request.args.get('date_debut', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')); df = request.args.get('date_fin', datetime.now().strftime('%Y-%m-%d')); mf = request.args.get('mode', '')
-    q = '''SELECT v.id, v.date_heure, v.total, v.mode_paiement, c.nom as client_nom, COUNT(lv.id) as nb_produits FROM ventes v LEFT JOIN clients c ON v.client_id = c.id LEFT JOIN lignes_vente lv ON v.id = lv.vente_id WHERE date(v.date_heure) BETWEEN ? AND ?'''
+    db = request.args.get('date_debut', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+    df = request.args.get('date_fin', datetime.now().strftime('%Y-%m-%d'))
+    cat_filtre = request.args.get('categorie', '')
+    
+    q = '''SELECT date(v.date_heure) as date_vente,
+                  p.nom as produit_nom, p.categorie,
+                  SUM(CASE WHEN lv.type_vente = 'hall' THEN lv.quantite ELSE 0 END) as qte_hall,
+                  SUM(CASE WHEN lv.type_vente = 'kit' THEN lv.quantite ELSE 0 END) as qte_kit,
+                  SUM(CASE WHEN lv.type_vente = 'bar' THEN lv.quantite ELSE 0 END) as qte_bar,
+                  SUM(lv.montant_kit) as total_ligne
+           FROM lignes_vente lv
+           JOIN ventes v ON lv.vente_id = v.id
+           JOIN produits p ON lv.produit_id = p.id
+           WHERE date(v.date_heure) BETWEEN ? AND ?'''
     p = [db, df]
-    if mf: q += ' AND v.mode_paiement = ?'; p.append(mf)
-    q += ' GROUP BY v.id ORDER BY v.date_heure DESC'
-    ventes = conn.execute(q, p).fetchall(); conn.close()
-    return render_template('historique.html', ventes=ventes, date_debut=db, date_fin=df, mode_filtre=mf, total_ventes=sum(v['total'] for v in ventes), nb_ventes=len(ventes))
+    if cat_filtre:
+        q += ' AND p.categorie = ?'
+        p.append(cat_filtre)
+    q += ' GROUP BY date(v.date_heure), p.id ORDER BY date_vente DESC, p.categorie, p.nom'
+    
+    lignes = conn.execute(q, p).fetchall()
+    total_global = conn.execute('SELECT COALESCE(SUM(total), 0) as total FROM ventes WHERE date(date_heure) BETWEEN ? AND ?', [db, df]).fetchone()['total']
+    categories = conn.execute('SELECT DISTINCT categorie FROM produits WHERE categorie IS NOT NULL ORDER BY categorie').fetchall()
+    
+    conn.close()
+    return render_template('historique.html', lignes=lignes, date_debut=db, date_fin=df, categorie_filtre=cat_filtre, total_global=total_global, nb_lignes=len(lignes), categories=categories)
 
 # ==========================================
 # 7. CLIENTS & REMBOURSEMENTS
@@ -482,53 +580,78 @@ def historique():
 @check_access('acces_clients')
 def clients():
     conn = get_db()
-    if request.method == 'POST' and 'client_id' not in request.form: # Création de client
+    if request.method == 'POST' and 'client_id' not in request.form:
         conn.execute('INSERT INTO clients (nom, telephone, adresse, solde_du, plafond_credit) VALUES (?, ?, ?, 0, ?)', (request.form['nom'], request.form['telephone'], request.form.get('adresse', ''), float(request.form['plafond'] or 0)))
         conn.commit(); conn.close(); flash("✅ Client créé !", "success"); return redirect(url_for('clients'))
-    lc = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall(); conn.close()
-    return render_template('clients.html', clients=lc)
+    
+    lc = conn.execute('SELECT * FROM clients ORDER BY nom').fetchall()
+    clients_with_data = []
+    for c in lc:
+        total_remboursements = conn.execute('SELECT COALESCE(SUM(montant), 0) as total FROM remboursements WHERE client_id = ?', (c['id'],)).fetchone()['total']
+        solde_actuel = float(c['solde_du'] or 0)
+        total_vendu_credit = solde_actuel + total_remboursements
+        taux = round((total_remboursements / total_vendu_credit) * 100, 1) if total_vendu_credit > 0 else 0
+        
+        commandes_impayees = conn.execute('SELECT id, numero_commande, date_commande, total, statut FROM commandes WHERE client_id = ? AND statut = "Impayée" ORDER BY date_commande DESC', (c['id'],)).fetchall()
+        
+        c_dict = dict(c)
+        c_dict['total_vendu_credit'] = total_vendu_credit
+        c_dict['total_remboursements'] = total_remboursements
+        c_dict['taux_recouvrement'] = taux
+        c_dict['commandes_impayees'] = [{'id': cmd['id'], 'numero': cmd['numero_commande'] or f"CMD-{c['nom'][:3].upper()}-001", 'date': cmd['date_commande'][:10] if cmd['date_commande'] else '', 'total': float(cmd['total'])} for cmd in commandes_impayees]
+        clients_with_data.append(c_dict)
+    conn.close()
+    return render_template('clients.html', clients=clients_with_data)
 
 @app.route('/rembourser_client', methods=['POST'])
 @check_access('acces_clients')
 def rembourser_client():
     conn = get_db()
     client_id = request.form.get('client_id')
+    commande_id = request.form.get('commande_id')
     montant = float(request.form.get('montant', 0) or 0)
     mode = request.form.get('mode_paiement', 'especes')
     
     if montant > 0 and client_id:
-        # Vérifier le solde actuel
         client = conn.execute('SELECT solde_du FROM clients WHERE id = ?', (client_id,)).fetchone()
         if client and montant > client['solde_du']:
-            flash(f"⚠️ Le montant ({fmt(montant)}) est supérieur à la dette ({fmt(client['solde_du'])}).", "danger")
+            flash(f"⚠️ Montant ({fmt(montant)}) supérieur à la dette ({fmt(client['solde_du'])}).", "danger")
         else:
             conn.execute('UPDATE clients SET solde_du = solde_du - ? WHERE id = ?', (montant, client_id))
-            conn.execute('INSERT INTO remboursements (date_remboursement, client_id, montant, mode_paiement, utilisateur_id) VALUES (?, ?, ?, ?, ?)', 
-                         (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id, montant, mode, session['user_id']))
-            conn.commit()
-            flash(f"✅ Paiement de {fmt(montant)} FCFA enregistré !", "success")
-    else:
-        flash("⚠️ Montant invalide.", "danger")
-    conn.close()
-    return redirect(url_for('clients'))
+            conn.execute('INSERT INTO remboursements (date_remboursement, client_id, commande_id, montant, mode_paiement, utilisateur_id) VALUES (?, ?, ?, ?, ?, ?)', 
+                         (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), client_id, commande_id if commande_id else None, montant, mode, session['user_id']))
+            if commande_id:
+                cmd = conn.execute('SELECT total FROM commandes WHERE id = ?', (commande_id,)).fetchone()
+                if cmd and abs(cmd['total'] - montant) < 1:
+                    conn.execute('UPDATE commandes SET statut = "Payée" WHERE id = ?', (commande_id,))
+            conn.commit(); flash(f"✅ Paiement de {fmt(montant)} FCFA enregistré !", "success")
+    else: flash("⚠️ Montant invalide.", "danger")
+    conn.close(); return redirect(url_for('clients'))
 
 # ==========================================
-# 8. PAIEMENTS
+# 8. PAIEMENTS (Journal)
 # ==========================================
-@app.route('/paiements', methods=['GET', 'POST'])
+@app.route('/paiements', methods=['GET'])
 @check_access('acces_paiements')
 def paiements():
     conn = get_db()
-    if request.method == 'POST':
-        dp = request.form['date_paiement']
-        for m, k in [('especes', 'montant_especes'), ('wave', 'montant_wave'), ('orange_money', 'montant_orange')]:
-            v = request.form.get(k, 0)
-            if float(v) > 0: conn.execute('INSERT INTO paiements (date_paiement, mode_paiement, montant) VALUES (?, ?, ?)', (dp, m, v))
-        conn.commit(); conn.close(); flash("✅ Paiements enregistrés !", "success"); return redirect(url_for('paiements'))
-    today = datetime.now().strftime('%Y-%m-%d')
-    stats = conn.execute('SELECT mode_paiement, SUM(montant) as total_montant FROM paiements WHERE date(date_paiement) = ? GROUP BY mode_paiement', (today,)).fetchall()
-    hist = conn.execute('SELECT * FROM paiements WHERE date(date_paiement) = ? ORDER BY id DESC', (today,)).fetchall(); conn.close()
-    return render_template('paiements.html', stats=stats, historique=hist, date_jour=today)
+    db = request.args.get('date_debut', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+    df = request.args.get('date_fin', datetime.now().strftime('%Y-%m-%d'))
+    
+    hist = conn.execute('''
+        SELECT r.*, c.nom as client_nom, co.numero_commande, u.nom as utilisateur_nom
+        FROM remboursements r
+        LEFT JOIN clients c ON r.client_id = c.id
+        LEFT JOIN commandes co ON r.commande_id = co.id
+        LEFT JOIN utilisateurs u ON r.utilisateur_id = u.id
+        WHERE date(r.date_remboursement) BETWEEN ? AND ?
+        ORDER BY r.date_remboursement DESC
+    ''', (db, df)).fetchall()
+    
+    total_rembourse = conn.execute('SELECT COALESCE(SUM(montant), 0) as total FROM remboursements WHERE date(date_remboursement) BETWEEN ? AND ?', (db, df)).fetchone()['total']
+    
+    conn.close()
+    return render_template('paiements.html', historique=hist, date_debut=db, date_fin=df, total_rembourse=total_rembourse, nb_paiements=len(hist))
 
 # ==========================================
 # 9. INVENTAIRE

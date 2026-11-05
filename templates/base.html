@@ -7,7 +7,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; font-family: 'Segoe UI', sans-serif; }
-        .sidebar { background-color: #001529; min-height: 100vh; color: white; padding-top: 20px; position: relative; }
+        .sidebar { 
+            background-color: #001529; 
+            min-height: 100vh; 
+            color: white; 
+            padding-top: 20px; 
+            position: relative;
+            padding-bottom: 100px; /* ✅ Espace pour la déconnexion */
+        }
         .sidebar-brand { text-align: center; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
         .sidebar a { color: rgba(255,255,255,0.65); text-decoration: none; padding: 15px 25px; display: block; transition: 0.3s; }
         .sidebar a:hover, .sidebar a.active { background-color: #002140; color: white; border-left: 4px solid #1890ff; }
@@ -16,7 +23,15 @@
         .stat-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid #1890ff; }
         .stat-card .value { font-size: 1.8rem; font-weight: bold; color: #333; }
         .content-card { background: white; border-radius: 8px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .logout-section { position: absolute; bottom: 20px; left: 0; right: 0; padding: 0 25px; }
+        .logout-section { 
+            position: absolute; 
+            bottom: 20px; 
+            left: 0; 
+            right: 0; 
+            padding: 0 25px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -35,7 +50,6 @@
                 <a href="{{ url_for('caisse') }}" class="{% if request.endpoint == 'caisse' %}active{% endif %}"><i class="fas fa-cash-register"></i> Ventes du jour</a>
                 {% endif %}
                 
-                <!-- ✅ NOUVEL ONGLET COMMANDES -->
                 {% if session.get('acces_clients') %}
                 <a href="{{ url_for('commandes') }}" class="{% if request.endpoint == 'commandes' %}active{% endif %}"><i class="fas fa-file-invoice text-warning"></i> Commandes</a>
                 {% endif %}
@@ -49,7 +63,7 @@
                 {% endif %}
                 
                 {% if session.get('acces_historique') %}
-                <a href="{{ url_for('historique') }}" class="{% if request.endpoint == 'historique' %}active{% endif %}"><i class="fas fa-history"></i> Historique & Consultation</a>
+                <a href="{{ url_for('historique') }}" class="{% if request.endpoint == 'historique' %}active{% endif %}"><i class="fas fa-history"></i> Historique</a>
                 {% endif %}
                 
                 {% if session.get('acces_clients') %}
