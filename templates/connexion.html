@@ -2,78 +2,58 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Connexion - Gestion Cave</title>
+    <title>Connexion - CavePilot</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #001529 0%, #003a70 100%);
+            background: linear-gradient(135deg, #f4f6f9 0%, #e8eaf0 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             font-family: 'Segoe UI', sans-serif;
         }
         .login-card {
             background: white;
             border-radius: 15px;
             padding: 40px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 450px;
-            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            max-width: 500px; width: 100%;
+            border-top: 5px solid var(--cp-dore);
         }
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-header img { max-width: 100%; height: auto; max-height: 150px; margin-bottom: 15px; }
+        .login-header .subtitle { color: #666; font-size: 0.9rem; }
+        .form-control-lg { 
+            border-radius: 10px; padding: 12px 15px; 
+            border: 1px solid #ddd; background-color: white; color: #333;
         }
-        .login-header h2 {
-            color: #001529;
-            font-weight: bold;
-        }
-        .login-header .subtitle {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .form-control-lg {
-            border-radius: 10px;
-            padding: 12px 15px;
+        .form-control-lg:focus { 
+            border-color: var(--cp-dore); 
+            box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25); 
         }
         .btn-login {
-            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: white;
-            width: 100%;
-            transition: 0.3s;
+            background: linear-gradient(135deg, var(--cp-noir) 0%, var(--cp-noir-clair) 100%);
+            border: none; border-radius: 10px; padding: 12px;
+            font-size: 1.1rem; font-weight: bold; color: var(--cp-dore); 
+            width: 100%; transition: 0.3s;
         }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(24, 144, 255, 0.4);
-            color: white;
+        .btn-login:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); 
+            color: var(--cp-dore); 
         }
-        .footer-link {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 0.85rem;
-        }
-        .footer-link a {
-            color: #1890ff;
-            text-decoration: none;
-            font-weight: 500;
-        }
-        .footer-link a:hover {
-            text-decoration: underline;
-        }
+        .footer-link { text-align: center; margin-top: 20px; font-size: 0.85rem; }
+        .footer-link a { color: var(--cp-dore); text-decoration: none; font-weight: 500; }
+        .footer-link a:hover { text-decoration: underline; color: var(--cp-dore-fonce); }
+        .form-label { color: var(--cp-noir); font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="login-card">
         <div class="login-header">
-            <h2><i class="fas fa-wine-bottle text-primary"></i> Ma Cave</h2>
-            <p class="subtitle">Gestion Professionnelle</p>
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="CavePilot">
+            <p class="subtitle">Gestion Professionnelle de Cave</p>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -89,11 +69,11 @@
 
         <form method="POST" action="{{ url_for('connexion') }}">
             <div class="mb-3">
-                <label class="form-label fw-bold"><i class="fas fa-user"></i> Nom d'utilisateur</label>
+                <label class="form-label"><i class="fas fa-user" style="color:var(--cp-dore)"></i> Nom d'utilisateur</label>
                 <input type="text" class="form-control form-control-lg" name="nom_utilisateur" placeholder="Entrez votre nom" required autofocus>
             </div>
             <div class="mb-4">
-                <label class="form-label fw-bold"><i class="fas fa-lock"></i> Mot de passe</label>
+                <label class="form-label"><i class="fas fa-lock" style="color:var(--cp-dore)"></i> Mot de passe</label>
                 <input type="password" class="form-control form-control-lg" name="mot_de_passe" placeholder="Entrez votre mot de passe" required>
             </div>
             <button type="submit" class="btn btn-login">
@@ -101,12 +81,10 @@
             </button>
         </form>
 
-        <!-- ✅ LIEN DISCRET POUR CRÉER UN COMPTE -->
         <div class="footer-link">
             <a href="{{ url_for('creer_compte') }}"><i class="fas fa-user-plus"></i> Premier accès ? Créer un compte</a>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

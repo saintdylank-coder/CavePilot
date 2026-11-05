@@ -1,35 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Tableau de bord{% endblock %}
+{% block title %}CavePilot - Tableau de bord{% endblock %}
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="mb-0"><i class="fas fa-tachometer-alt text-primary"></i> Tableau de bord</h2>
+    <h2 class="page-title mb-0"><i class="fas fa-tachometer-alt"></i> Tableau de bord</h2>
     <span class="text-muted"><i class="far fa-calendar-alt"></i> {{ date_jour }}</span>
 </div>
 
 <!-- KPIs PRINCIPAUX -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="stat-card" style="border-left-color: #1565c0;">
-            <div class="label"><i class="fas fa-coins"></i> Ventes du jour</div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-coins" style="color:var(--cp-dore)"></i> Ventes du jour</div>
             <div class="value">{{ fmt(ventes_jour) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="border-left-color: #2e7d32;">
-            <div class="label"><i class="fas fa-chart-line"></i> Ventes du mois</div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-chart-line" style="color:var(--cp-dore)"></i> Ventes du mois</div>
             <div class="value">{{ ventes_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="border-left-color: #f57c00;">
-            <div class="label"><i class="fas fa-boxes"></i> Valeur du stock</div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-boxes" style="color:var(--cp-dore)"></i> Valeur du stock</div>
             <div class="value">{{ valeur_stock }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stat-card" style="border-left-color: #c62828;">
-            <div class="label"><i class="fas fa-hand-holding-usd"></i> Crédits en cours</div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-hand-holding-usd" style="color:var(--cp-dore)"></i> Crédits en cours</div>
             <div class="value">{{ total_credits }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
@@ -38,16 +38,16 @@
 <!-- NOUVEAUX KPIs -->
 <div class="row mb-4">
     <div class="col-md-4">
-        <div class="stat-card" style="border-left-color: #6a1b9a;">
-            <div class="label"><i class="fas fa-chart-pie"></i> Marge brute</div>
-            <div class="value" style="color: #6a1b9a;">{{ marge_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-chart-pie" style="color:var(--cp-dore)"></i> Marge brute</div>
+            <div class="value" style="color: var(--cp-dore-fonce);">{{ marge_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="stat-card" style="border-left-color: #00838f;">
-            <div class="label"><i class="fas fa-percentage"></i> Taux de recouvrement</div>
-            <div class="value" style="color: #00838f;">{{ taux_recouvrement }}%</div>
-            <div class="progress mt-2" style="height: 8px;">
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-percentage" style="color:var(--cp-dore)"></i> Taux de recouvrement</div>
+            <div class="value" style="color: var(--cp-dore-fonce);">{{ taux_recouvrement }}%</div>
+            <div class="progress mt-2" style="height: 8px; background-color: #e9ecef;">
                 <div class="progress-bar bg-info" style="width: {{ taux_recouvrement }}%"></div>
             </div>
             <div class="mt-2 small">
@@ -63,9 +63,9 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="stat-card" style="border-left-color: {% if total_ecarts_today|float < 0 %}#c62828{% else %}#f57c00{% endif %};">
-            <div class="label"><i class="fas fa-balance-scale"></i> Total des écarts aujourd'hui</div>
-            <div class="value" style="color: {% if total_ecarts_today|float < 0 %}#c62828{% else %}#f57c00{% endif %};">{{ total_ecarts_today }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
+        <div class="stat-card">
+            <div class="label"><i class="fas fa-balance-scale" style="color:var(--cp-dore)"></i> Total des écarts aujourd'hui</div>
+            <div class="value" style="color: {% if total_ecarts_today|float < 0 %}var(--cp-rouge){% else %}var(--cp-dore-fonce){% endif %};">{{ total_ecarts_today }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
         </div>
     </div>
 </div>
@@ -74,13 +74,13 @@
 <div class="row">
     <div class="col-md-7 mb-4">
         <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-chart-bar text-primary"></i> Ventes des 7 derniers jours</h5>
+            <h5 class="mb-3"><i class="fas fa-chart-bar"></i> Ventes des 7 derniers jours</h5>
             <canvas id="chartVentes" height="150"></canvas>
         </div>
     </div>
     <div class="col-md-5 mb-4">
         <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-chart-pie text-success"></i> Modes de paiement ce mois</h5>
+            <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Modes de paiement ce mois</h5>
             <canvas id="chartPaiement" height="200"></canvas>
         </div>
     </div>
@@ -88,12 +88,12 @@
 
 <!-- TOP CA DU MOIS -->
 <div class="content-card mb-4">
-    <h5 class="mb-3"><i class="fas fa-trophy text-warning"></i> Top CA du mois par catégorie</h5>
+    <h5 class="mb-3"><i class="fas fa-trophy"></i> Top CA du mois par catégorie</h5>
     <div class="row">
         {% for cat in top_cats_data %}
         <div class="col-md-4">
-            <div class="border rounded p-3 mb-3" style="background: #f8f9fa;">
-                <h6 class="fw-bold text-center mb-3" style="color: #1565c0;">
+            <div class="border rounded p-3 mb-3" style="background: #f8f9fa; border-top: 3px solid var(--cp-dore) !important;">
+                <h6 class="fw-bold text-center mb-3" style="color: var(--cp-noir);">
                     {{ cat.categorie }}
                     <br><small class="text-muted">Total: {{ fmt(cat.total_ca) }} FCFA</small>
                 </h6>
@@ -128,10 +128,10 @@
     </div>
 </div>
 
-<!-- ALERTES STOCK BAS : Triées par criticité -->
+<!-- ALERTES STOCK BAS -->
 <div class="content-card mb-4">
     <h5 class="mb-3">
-        <i class="fas fa-exclamation-triangle text-danger"></i> Alertes stock bas
+        <i class="fas fa-exclamation-triangle" style="color:var(--cp-rouge)"></i> Alertes stock bas
         <small class="text-muted ms-2">
             <span class="badge bg-danger">🔴 Critique</span>
             <span class="badge bg-warning text-dark ms-1">🟠 Important</span>
@@ -141,8 +141,8 @@
     <div class="row">
         {% for cat_name in ['AUTRES', 'VINS', 'CHAMPAGNES'] %}
         <div class="col-md-4">
-            <div class="border rounded p-3 mb-3" style="background: #fff5f5;">
-                <h6 class="fw-bold text-center mb-3 text-danger">
+            <div class="border rounded p-3 mb-3" style="background: #fff5f5; border-top: 3px solid var(--cp-rouge) !important;">
+                <h6 class="fw-bold text-center mb-3" style="color: var(--cp-rouge);">
                     {{ cat_name }}
                     <br><small class="text-muted">{{ alertes_par_categorie[cat_name]|length }} produit(s) en alerte</small>
                 </h6>
@@ -161,11 +161,11 @@
                         <tr>
                             <td>
                                 {% if a.criticite == 'critique' %}
-                                    <span class="badge bg-danger" title="Produit très vendu - URGENT">🔴</span>
+                                    <span class="badge bg-danger">🔴</span>
                                 {% elif a.criticite == 'important' %}
-                                    <span class="badge bg-warning text-dark" title="Produit moyennement vendu">🟠</span>
+                                    <span class="badge bg-warning text-dark">🟠</span>
                                 {% else %}
-                                    <span class="badge bg-success" title="Produit peu vendu">🟢</span>
+                                    <span class="badge bg-success">🟢</span>
                                 {% endif %}
                             </td>
                             <td><small>{{ a.nom }}</small></td>
@@ -223,10 +223,10 @@
     </div>
 </div>
 
-<!-- ÉCARTS DE CAISSE (VERSION COMPACTE) -->
+<!-- ÉCARTS DE CAISSE -->
 <div class="content-card mb-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="fas fa-balance-scale text-danger"></i> Écarts de caisse</h5>
+        <h5 class="mb-0"><i class="fas fa-balance-scale" style="color:var(--cp-rouge)"></i> Écarts de caisse</h5>
         <div class="d-flex gap-2">
             <span class="badge bg-danger">Manques: {{ fmt(total_manques) }} FCFA</span>
             <span class="badge bg-warning text-dark">Surplus: {{ fmt(total_surplus) }} FCFA</span>
@@ -298,8 +298,8 @@ new Chart(ctxVentes, {
         datasets: [{
             label: 'Ventes (FCFA)',
             data: {{ data_ventes|tojson }},
-            backgroundColor: '#1890ff',
-            borderColor: '#096dd9',
+            backgroundColor: '#D4AF37',
+            borderColor: '#B8860B',
             borderWidth: 1,
             borderRadius: 5
         }]
@@ -315,7 +315,7 @@ new Chart(ctxVentes, {
                     if (value === 0) return '';
                     return value.toLocaleString('fr-FR');
                 },
-                color: '#c62828',
+                color: '#B8860B',
                 font: { weight: 'bold', size: 12 },
                 textShadowColor: '#fff',
                 textShadowBlur: 3
@@ -337,7 +337,7 @@ new Chart(ctxPaiement, {
         labels: {{ labels_paiement|tojson }},
         datasets: [{
             data: {{ data_paiement|tojson }},
-            backgroundColor: {{ couleurs_paiement|tojson }},
+            backgroundColor: ['#000000', '#D4AF37', '#B8860B', '#dc3545'],
             borderWidth: 3,
             borderColor: '#fff'
         }]
