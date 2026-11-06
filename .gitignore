@@ -1,0 +1,8 @@
+# Fichiers sensibles - NE PAS ENVOYER SUR GITHUB
+.env
+cave.db
+cave.db.enc
+__pycache__/
+*.pyc
+backups/
+.vscode/

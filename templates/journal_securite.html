@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}CavePilot - Journal de sécurité{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0"><i class="fas fa-shield-alt"></i> Journal de sécurité</h2>
+    <a href="{{ url_for('backup_db') }}" class="btn btn-success">
+        <i class="fas fa-download"></i> Sauvegarder la base
+    </a>
+</div>
+
+<!-- Tentatives échouées -->
+<div class="content-card mb-4">
+    <h5 class="mb-3"><i class="fas fa-exclamation-triangle" style="color:var(--cp-rouge)"></i> Tentatives de connexion échouées (20 dernières)</h5>
+    {% if tentatives %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead class="table-dark">
+                <tr><th>Date</th><th>Utilisateur</th><th>IP</th></tr>
+            </thead>
+            <tbody>
+                {% for t in tentatives %}
+                <tr>
+                    <td>{{ t.date_tentative }}</td>
+                    <td><strong>{{ t.nom_utilisateur }}</strong></td>
+                    <td><code>{{ t.ip_adresse }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success">Aucune tentative échouée récente.</div>
+    {% endif %}
+</div>
+
+<!-- Connexions récentes -->
+<div class="content-card mb-4">
+    <h5 class="mb-3"><i class="fas fa-sign-in-alt" style="color:var(--cp-dore)"></i> Connexions récentes (50 dernières)</h5>
+    {% if connexions %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead class="table-dark">
+                <tr><th>Date</th><th>Utilisateur</th><th>IP</th><th>Statut</th><th>Motif</th></tr>
+            </thead>
+            <tbody>
+                {% for c in connexions %}
+                <tr>
+                    <td>{{ c.date_connexion }}</td>
+                    <td>{{ c.nom_utilisateur or '-' }}</td>
+                    <td><code>{{ c.ip_adresse }}</code></td>
+                    <td>
+                        {% if c.succes %}
+                            <span class="badge bg-success">Succès</span>
+                        {% else %}
+                            <span class="badge bg-danger">Échec</span>
+                        {% endif %}
+                    </td>
+                    <td><small>{{ c.motif_echec or '-' }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Aucune connexion enregistrée.</div>
+    {% endif %}
+</div>
+
+<!-- Actions sensibles -->
+<div class="content-card mb-4">
+    <h5 class="mb-3"><i class="fas fa-history" style="color:var(--cp-dore)"></i> Actions sensibles (50 dernières)</h5>
+    {% if actions %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead class="table-dark">
+                <tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Détails</th><th>IP</th></tr>
+            </thead>
+            <tbody>
+                {% for a in actions %}
+                <tr>
+                    <td>{{ a.date_action }}</td>
+                    <td>{{ a.nom_utilisateur }}</td>
+                    <td><strong>{{ a.action }}</strong></td>
+                    <td><small>{{ a.details or '-' }}</small></td>
+                    <td><code>{{ a.ip_adresse }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Aucune action enregistrée.</div>
+    {% endif %}
+</div>
+
+{% endblock %}
