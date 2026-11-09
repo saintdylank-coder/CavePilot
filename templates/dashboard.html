@@ -1,382 +1,62 @@
 {% extends "base.html" %}
-{% block title %}CavePilot - Tableau de bord{% endblock %}
+{% block title %}Tableau de Bord - CavePilot{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 4px solid #D4AF37; margin-bottom: 20px; }
+    .stat-card .label { color: #666; font-size: 0.9rem; margin-bottom: 5px; }
+    .stat-card .value { font-size: 1.8rem; font-weight: bold; color: #1a1a1a; }
+</style>
+{% endblock %}
 {% block content %}
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0"><i class="fas fa-tachometer-alt"></i> Tableau de bord</h2>
-    <span class="text-muted"><i class="far fa-calendar-alt"></i> {{ date_jour }}</span>
-</div>
-
-<!-- KPIs PRINCIPAUX -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-coins" style="color:var(--cp-dore)"></i> Ventes du jour</div>
-            <div class="value">{{ fmt(ventes_jour) }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-chart-line" style="color:var(--cp-dore)"></i> Ventes du mois</div>
-            <div class="value">{{ ventes_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-boxes" style="color:var(--cp-dore)"></i> Valeur du stock</div>
-            <div class="value">{{ valeur_stock }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-hand-holding-usd" style="color:var(--cp-dore)"></i> Crédits en cours</div>
-            <div class="value">{{ total_credits }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-</div>
-
-<!-- NOUVEAUX KPIs -->
-<div class="row mb-4">
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-chart-pie" style="color:var(--cp-dore)"></i> Marge brute</div>
-            <div class="value" style="color: var(--cp-dore-fonce);">{{ marge_mois }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-percentage" style="color:var(--cp-dore)"></i> Taux de recouvrement</div>
-            <div class="value" style="color: var(--cp-dore-fonce);">{{ taux_recouvrement }}%</div>
-            <div class="progress mt-2" style="height: 8px; background-color: #e9ecef;">
-                <div class="progress-bar bg-info" style="width: {{ taux_recouvrement }}%"></div>
-            </div>
-            <div class="mt-2 small">
-                <div class="d-flex justify-content-between">
-                    <span class="text-muted">Total remboursé :</span>
-                    <strong class="text-success">{{ total_rembourse }} FCFA</strong>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <span class="text-muted">Total vendu à crédit :</span>
-                    <strong class="text-danger">{{ total_vendu_credit }} FCFA</strong>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label"><i class="fas fa-balance-scale" style="color:var(--cp-dore)"></i> Total des écarts aujourd'hui</div>
-            <div class="value" style="color: {% if total_ecarts_today|float < 0 %}var(--cp-rouge){% else %}var(--cp-dore-fonce){% endif %};">{{ total_ecarts_today }} <small style="font-size: 1rem; color: #666;">FCFA</small></div>
-        </div>
-    </div>
-</div>
-
-<!-- GRAPHIQUES -->
+<h2 class="mb-4">📊 Tableau de Bord - {{ date_jour }}</h2>
 <div class="row">
-    <div class="col-md-7 mb-4">
+    <div class="col-md-3"><div class="stat-card"><div class="label">📅 Ventes du Jour</div><div class="value">{{ fmt(ventes_jour) }} <small class="fs-6">FCFA</small></div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="label">📆 Ventes du Mois</div><div class="value">{{ ventes_mois }} <small class="fs-6">FCFA</small></div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="label">📦 Stock Hall</div><div class="value">{{ stock_hall }} <small class="fs-6">unités</small></div><div class="label mt-1">Valeur: {{ valeur_stock }} FCFA</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="label">💳 Crédits Clients</div><div class="value">{{ total_credits }} <small class="fs-6">FCFA</small></div><div class="label mt-1">{{ total_clients }} clients</div></div></div>
+</div>
+<div class="row mt-4">
+    <div class="col-md-8">
         <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-chart-bar"></i> Ventes des 7 derniers jours</h5>
-            <canvas id="chartVentes" height="150"></canvas>
+            <h5>📈 Ventes sur 7 Jours</h5>
+            <canvas id="chartVentes" height="100"></canvas>
         </div>
     </div>
-    <div class="col-md-5 mb-4">
+    <div class="col-md-4">
         <div class="content-card">
-            <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Modes de paiement ce mois</h5>
-            <canvas id="chartPaiement" height="200"></canvas>
+            <h5>💳 Modes de Paiement (Mois)</h5>
+            <canvas id="chartPaiements" height="200"></canvas>
         </div>
     </div>
 </div>
-
-<!-- TOP CA DU MOIS -->
-<div class="content-card mb-4">
-    <h5 class="mb-3"><i class="fas fa-trophy"></i> Top CA du mois par catégorie</h5>
-    <div class="row">
-        {% for cat in top_cats_data %}
-        <div class="col-md-4">
-            <div class="border rounded p-3 mb-3" style="background: #f8f9fa; border-top: 3px solid var(--cp-dore) !important;">
-                <h6 class="fw-bold text-center mb-3" style="color: var(--cp-noir);">
-                    {{ cat.categorie }}
-                    <br><small class="text-muted">Total: {{ fmt(cat.total_ca) }} FCFA</small>
-                </h6>
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr class="text-muted small">
-                            <th>#</th>
-                            <th>Produit</th>
-                            <th class="text-end">Qté</th>
-                            <th class="text-end">CA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in cat.produits %}
-                        <tr>
-                            <td><strong>{{ loop.index }}</strong></td>
-                            <td><small>{{ p.nom }}</small></td>
-                            <td class="text-end"><small>{{ p.total_qte }}</small></td>
-                            <td class="text-end"><small class="fw-bold">{{ fmt(p.total_ca) }}</small></td>
-                        </tr>
-                        {% endfor %}
-                        {% if cat.produits|length < 5 %}
-                        {% for i in range(cat.produits|length, 5) %}
-                        <tr><td colspan="4" class="text-muted text-center"><small>-</small></td></tr>
-                        {% endfor %}
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-</div>
-
-<!-- ALERTES STOCK BAS -->
-<div class="content-card mb-4">
-    <h5 class="mb-3">
-        <i class="fas fa-exclamation-triangle" style="color:var(--cp-rouge)"></i> Alertes stock bas
-        <small class="text-muted ms-2">
-            <span class="badge bg-danger">🔴 Critique</span>
-            <span class="badge bg-warning text-dark ms-1">🟠 Important</span>
-            <span class="badge bg-success ms-1">🟢 Faible</span>
-        </small>
-    </h5>
-    <div class="row">
-        {% for cat_name in ['AUTRES', 'VINS', 'CHAMPAGNES'] %}
-        <div class="col-md-4">
-            <div class="border rounded p-3 mb-3" style="background: #fff5f5; border-top: 3px solid var(--cp-rouge) !important;">
-                <h6 class="fw-bold text-center mb-3" style="color: var(--cp-rouge);">
-                    {{ cat_name }}
-                    <br><small class="text-muted">{{ alertes_par_categorie[cat_name]|length }} produit(s) en alerte</small>
-                </h6>
-                {% if alertes_par_categorie[cat_name] %}
-                <table class="table table-sm mb-0">
-                    <thead>
-                        <tr class="text-muted small">
-                            <th></th>
-                            <th>Produit</th>
-                            <th class="text-end">Stock</th>
-                            <th class="text-end">Vendu</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in alertes_par_categorie[cat_name][:5] %}
-                        <tr>
-                            <td>
-                                {% if a.criticite == 'critique' %}
-                                    <span class="badge bg-danger">🔴</span>
-                                {% elif a.criticite == 'important' %}
-                                    <span class="badge bg-warning text-dark">🟠</span>
-                                {% else %}
-                                    <span class="badge bg-success">🟢</span>
-                                {% endif %}
-                            </td>
-                            <td><small>{{ a.nom }}</small></td>
-                            <td class="text-end"><span class="badge bg-danger">{{ a.quantite }}</span></td>
-                            <td class="text-end"><small>{{ a.total_vendu }}</small></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% if alertes_par_categorie[cat_name]|length > 5 %}
-                <div class="mt-2">
-                    <button class="btn btn-sm btn-outline-danger w-100" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ cat_name }}">
-                        <i class="fas fa-chevron-down"></i> Voir les {{ alertes_par_categorie[cat_name]|length - 5 }} autres
-                    </button>
-                    <div class="collapse" id="collapse-{{ cat_name }}">
-                        <table class="table table-sm mb-0 mt-2">
-                            <tbody>
-                                {% for a in alertes_par_categorie[cat_name][5:] %}
-                                <tr>
-                                    <td>
-                                        {% if a.criticite == 'critique' %}
-                                            <span class="badge bg-danger">🔴</span>
-                                        {% elif a.criticite == 'important' %}
-                                            <span class="badge bg-warning text-dark">🟠</span>
-                                        {% else %}
-                                            <span class="badge bg-success">🟢</span>
-                                        {% endif %}
-                                    </td>
-                                    <td><small>{{ a.nom }}</small></td>
-                                    <td class="text-end"><span class="badge bg-danger">{{ a.quantite }}</span></td>
-                                    <td class="text-end"><small>{{ a.total_vendu }}</small></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
-                {% else %}
-                <div class="text-center text-muted py-3">
-                    <i class="fas fa-check-circle text-success"></i><br>
-                    <small>Aucune alerte</small>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    <div class="alert alert-info mt-3 mb-0">
-        <i class="fas fa-info-circle"></i> 
-        <strong>Légende :</strong> 
-        🔴 <strong>Critique</strong> = Produit très vendu + stock bas → <strong>À approvisionner en priorité</strong> | 
-        🟠 <strong>Important</strong> = Vente moyenne | 
-        🟢 <strong>Faible</strong> = Vente faible
-    </div>
-</div>
-
-<!-- ÉCARTS DE CAISSE -->
-<div class="content-card mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="fas fa-balance-scale" style="color:var(--cp-rouge)"></i> Écarts de caisse</h5>
-        <div class="d-flex gap-2">
-            <span class="badge bg-danger">Manques: {{ fmt(total_manques) }} FCFA</span>
-            <span class="badge bg-warning text-dark">Surplus: {{ fmt(total_surplus) }} FCFA</span>
-        </div>
-    </div>
-    
-    <form method="GET" action="{{ url_for('dashboard') }}" class="row g-2 align-items-end mb-3">
-        <div class="col-auto">
-            <label class="form-label small fw-bold mb-1">Du</label>
-            <input type="date" class="form-control form-control-sm" name="date_debut_ecart" value="{{ date_debut_ecart }}">
-        </div>
-        <div class="col-auto">
-            <label class="form-label small fw-bold mb-1">Au</label>
-            <input type="date" class="form-control form-control-sm" name="date_fin_ecart" value="{{ date_fin_ecart }}">
-        </div>
-        <div class="col-auto">
-            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Filtrer</button>
-        </div>
-    </form>
-    
-    {% if ecarts %}
-    <div class="table-responsive">
-        <table class="table table-hover align-middle table-sm">
-            <thead class="table-dark">
-                <tr><th>Date</th><th>Heure</th><th>Caissier(ère)</th><th class="text-end">Montant</th><th>Motif</th></tr>
-            </thead>
+<div class="content-card mt-4">
+    <h5>⚠️ Alertes de Stock Faible</h5>
+    {% set has_alerts = false %}
+    {% for categorie, alertes in alertes_par_categorie.items() %}
+        {% if alertes %}{% set has_alerts = true %}
+        <h6 class="mt-3">{{ categorie }}</h6>
+        <table class="table table-sm">
+            <thead><tr><th>Produit</th><th class="text-center">Stock</th><th class="text-center">Seuil</th><th class="text-center">Vendu</th><th class="text-center">Criticité</th></tr></thead>
             <tbody>
-                {% for e in ecarts %}
-                <tr>
-                    <td>{{ e.date_ecart }}</td>
-                    <td>{{ e.heure_ecart }}</td>
-                    <td>{{ e.utilisateur_nom or 'Inconnu' }}</td>
-                    <td class="text-end">
-                        {% if e.montant_ecart < 0 %}
-                            <span class="badge bg-danger">{{ fmt(e.montant_ecart) }} FCFA</span>
-                        {% elif e.montant_ecart > 0 %}
-                            <span class="badge bg-warning text-dark">+{{ fmt(e.montant_ecart) }} FCFA</span>
-                        {% else %}
-                            <span class="badge bg-secondary">0 FCFA</span>
-                        {% endif %}
-                    </td>
-                    <td><small>{{ e.motif }}</small></td>
-                </tr>
-                {% endfor %}
+            {% for alerte in alertes %}
+            <tr class="{% if alerte.criticite == 'critique' %}table-danger{% elif alerte.criticite == 'important' %}table-warning{% endif %}">
+                <td>{{ alerte.nom }}</td><td class="text-center">{{ alerte.quantite }}</td><td class="text-center">{{ alerte.seuil_alerte }}</td><td class="text-center">{{ alerte.total_vendu }}</td>
+                <td class="text-center"><span class="badge {% if alerte.criticite == 'critique' %}bg-danger{% elif alerte.criticite == 'important' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">{{ alerte.criticite | capitalize }}</span></td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
-    </div>
-    {% else %}
-    <div class="alert alert-success text-center mb-0">
-        <i class="fas fa-check-circle"></i> Aucun écart sur cette période.
-    </div>
-    {% endif %}
+        {% endif %}
+    {% endfor %}
+    {% if not has_alerts %}<p class="text-success text-center mb-0">✅ Tous les stocks sont suffisants !</p>{% endif %}
 </div>
-
 {% endblock %}
-
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-
 <script>
-Chart.register(ChartDataLabels);
-
-const ctxVentes = document.getElementById('chartVentes').getContext('2d');
-new Chart(ctxVentes, {
-    type: 'bar',
-    data: {
-        labels: {{ labels_jours|tojson }},
-        datasets: [{
-            label: 'Ventes (FCFA)',
-            data: {{ data_ventes|tojson }},
-            backgroundColor: '#D4AF37',
-            borderColor: '#B8860B',
-            borderWidth: 1,
-            borderRadius: 5
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { display: false },
-            datalabels: {
-                anchor: 'end',
-                align: 'end',
-                formatter: function(value) {
-                    if (value === 0) return '';
-                    return value.toLocaleString('fr-FR');
-                },
-                color: '#B8860B',
-                font: { weight: 'bold', size: 12 },
-                textShadowColor: '#fff',
-                textShadowBlur: 3
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: { callback: function(value) { return value.toLocaleString('fr-FR'); } }
-            }
-        }
-    }
-});
-
-const ctxPaiement = document.getElementById('chartPaiement').getContext('2d');
-new Chart(ctxPaiement, {
-    type: 'doughnut',
-    data: {
-        labels: {{ labels_paiement|tojson }},
-        datasets: [{
-            data: {{ data_paiement|tojson }},
-            backgroundColor: ['#000000', '#D4AF37', '#B8860B', '#dc3545'],
-            borderWidth: 3,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    color: '#000000',
-                    font: { size: 14, weight: 'bold' },
-                    padding: 20,
-                    usePointStyle: true,
-                    pointStyle: 'rectRounded'
-                }
-            },
-            tooltip: {
-                backgroundColor: '#000',
-                titleFont: { size: 14, weight: 'bold' },
-                bodyFont: { size: 13, weight: 'bold' },
-                callbacks: {
-                    label: function(context) {
-                        return context.label + ' : ' + context.parsed.toLocaleString('fr-FR') + ' FCFA';
-                    }
-                }
-            },
-            datalabels: {
-                color: '#fff',
-                font: { weight: 'bold', size: 13 },
-                formatter: function(value) {
-                    if (value === 0) return '';
-                    return value.toLocaleString('fr-FR') + ' FCFA';
-                },
-                textShadowColor: '#000',
-                textShadowBlur: 4
-            }
-        }
-    }
-});
+    const ctxVentes = document.getElementById('chartVentes').getContext('2d');
+    new Chart(ctxVentes, { type: 'line', data: { labels: {{ labels_jours | tojson }}, datasets: [{ label: 'Ventes (FCFA)', data: {{ data_ventes | tojson }}, borderColor: '#D4AF37', backgroundColor: 'rgba(212, 175, 55, 0.1)', tension: 0.4, fill: true }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
+    const ctxPaiements = document.getElementById('chartPaiements').getContext('2d');
+    new Chart(ctxPaiements, { type: 'doughnut', data: { labels: {{ labels_paiement | tojson }}, datasets: [{ data: {{ data_paiement | tojson }}, backgroundColor: {{ couleurs_paiement | tojson }} }] }, options: { responsive: true } });
 </script>
 {% endblock %}

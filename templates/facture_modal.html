@@ -1,0 +1,197 @@
+<div class="resume-box" style="background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%); color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    <div class="row">
+        <div class="col-md-4">
+            <div style="color: #D4AF37; font-size: 0.9rem;">Client</div>
+            <div style="font-size: 1.3rem; font-weight: bold;">{{ facture.client_nom }}</div>
+            <small>{{ facture.date_ouverture.strftime('%d/%m/%Y %H:%M') }}</small>
+        </div>
+        <div class="col-md-3">
+            <div style="color: #D4AF37; font-size: 0.9rem;">Total Dû</div>
+            <div style="font-size: 1.3rem; font-weight: bold;">{{ fmt(facture.total_general) }} FCFA</div>
+        </div>
+        <div class="col-md-2">
+            <div style="color: #D4AF37; font-size: 0.9rem;">Payé</div>
+            <div style="font-size: 1.3rem; font-weight: bold; color: #28a745;">{{ fmt(facture.total_paye) }} FCFA</div>
+        </div>
+        <div class="col-md-3">
+            <div style="color: #D4AF37; font-size: 0.9rem;">Reste à payer</div>
+            <div style="font-size: 1.3rem; font-weight: bold; {% if facture.reste_a_payer > 0 %}color: #dc3545;{% else %}color: #28a745;{% endif %}">{{ fmt(facture.reste_a_payer) }} FCFA</div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <small>N° {{ facture.numero }}</small>
+        </div>
+        <div class="col-md-6 text-end">
+            {% if verrouillee %}
+            <span class="badge bg-success fs-6">🔒 Facture verrouillée (Soldée)</span>
+            {% elif facture.reste_a_payer > 0 and facture.total_paye > 0 %}
+            <span class="badge bg-warning text-dark fs-6">⚠️ Paiement partiel</span>
+            {% elif facture.total_general > 0 %}
+            <span class="badge bg-danger fs-6">⏳ En attente de paiement</span>
+            {% else %}
+            <span class="badge bg-secondary fs-6">📝 Vide (aucun produit)</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not verrouillee %}
+<div class="mb-4">
+    <button class="btn btn-primary btn-lg me-2" data-bs-toggle="collapse" data-bs-target="#ajouterProduits">➕ Ajouter des produits</button>
+    {% if facture.reste_a_payer > 0 %}
+    <button class="btn btn-success btn-lg" data-bs-toggle="collapse" data-bs-target="#payerFacture">💰 Encaisser un paiement</button>
+    {% endif %}
+</div>
+
+<!-- Section Ajouter des produits -->
+<div class="collapse mb-4" id="ajouterProduits">
+    <div class="card p-3" style="border-top: 3px solid #D4AF37;">
+        <h6 class="mb-3">📦 Ajouter des produits à cette facture</h6>
+        <form method="POST" action="{{ url_for('facture_ajouter', facture_id=facture.id) }}">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th>Catégorie</th>
+                            <th class="text-center">Prix</th>
+                            <th class="text-center" style="width: 100px;">Quantité</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in produits_disponibles %}
+                        <tr>
+                            <td><strong>{{ p.nom }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ p.categorie or 'AUTRES' }}</span></td>
+                            <td class="text-center">{{ fmt(p.prix_vente_hall) }} FCFA</td>
+                            <td class="text-center">
+                                <input type="number" name="qte_{{ p.id }}" class="form-control form-control-sm text-center" min="0" max="{{ p.stock_hall }}" value="0">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-end">
+                <button type="submit" class="btn btn-success">✅ Valider l'ajout</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Section Paiement -->
+<div class="collapse mb-4" id="payerFacture">
+    <div class="card p-3" style="border-top: 3px solid #28a745;">
+        <h6 class="mb-3">💰 Encaisser un paiement</h6>
+        <form method="POST" action="{{ url_for('facture_paiement', facture_id=facture.id) }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Montant (FCFA)</label>
+                    <input type="number" name="montant" class="form-control form-control-lg" min="1" max="{{ facture.reste_a_payer }}" step="100" value="{{ facture.reste_a_payer }}" required>
+                    <small class="text-muted">Maximum: {{ fmt(facture.reste_a_payer) }} FCFA</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Mode de paiement</label>
+                    <select name="mode_paiement" class="form-select form-select-lg">
+                        <option value="especes">💵 Espèces</option>
+                        <option value="wave">📱 Wave</option>
+                        <option value="orange_money">🟠 Orange Money</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notes (optionnel)</label>
+                    <input type="text" name="notes" class="form-control" placeholder="Ex: Payé par un ami...">
+                </div>
+            </div>
+            <div class="text-end mt-3">
+                <button type="submit" class="btn btn-success btn-lg">✅ Valider le paiement</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success">
+    <strong>🔒 Facture verrouillée</strong> - Cette facture a été entièrement payée et ne peut plus être modifiée.
+</div>
+{% endif %}
+
+<!-- Liste des produits -->
+<div class="card mb-3">
+    <div class="card-header bg-dark text-white">
+        <h6 class="mb-0">📦 Produits ({{ lignes|length }})</h6>
+    </div>
+    <div class="card-body">
+        {% if lignes %}
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Heure</th>
+                    <th>Produit</th>
+                    <th>Catégorie</th>
+                    <th class="text-center">Qté</th>
+                    <th class="text-end">Prix U.</th>
+                    <th class="text-end">Montant</th>
+                    {% if not verrouillee %}
+                    <th class="text-center">Action</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in lignes %}
+                <tr>
+                    <td>{{ l.date_ajout.strftime('%H:%M') }}</td>
+                    <td><strong>{{ l.produit_nom }}</strong></td>
+                    <td><span class="badge bg-secondary">{{ l.categorie or 'AUTRES' }}</span></td>
+                    <td class="text-center">{{ l.quantite }}</td>
+                    <td class="text-end">{{ fmt(l.prix_unitaire) }}</td>
+                    <td class="text-end fw-bold">{{ fmt(l.montant) }}</td>
+                    {% if not verrouillee %}
+                    <td class="text-center">
+                        <a href="{{ url_for('facture_supprimer_ligne', facture_id=facture.id, ligne_id=l.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer cette ligne ? Le stock sera remis.')">🗑️</a>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted text-center mb-0">Aucun produit ajouté</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Historique des paiements -->
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h6 class="mb-0">💰 Historique des paiements ({{ paiements|length }})</h6>
+    </div>
+    <div class="card-body">
+        {% if paiements %}
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Montant</th>
+                    <th>Mode</th>
+                    <th>Par</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in paiements %}
+                <tr>
+                    <td>{{ p.date_paiement.strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="fw-bold text-success">{{ fmt(p.montant) }} FCFA</td>
+                    <td>{{ p.mode_paiement.replace('_', ' ').title() }}</td>
+                    <td>{{ p.utilisateur_nom or 'Inconnu' }}</td>
+                    <td>{{ p.notes or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted text-center mb-0">Aucun paiement enregistré</p>
+        {% endif %}
+    </div>
+</div>

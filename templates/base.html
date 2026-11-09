@@ -2,185 +2,60 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CavePilot{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block extra_css %}{% endblock %}
     <style>
-        body { background-color: var(--cp-fond); font-family: 'Segoe UI', sans-serif; color: var(--cp-texte); margin: 0; }
-        
-        /* ✅ SIDEBAR FIXE : Prend toute la hauteur, ne bouge pas */
-        .sidebar { 
-            background: #000000; 
-            height: 100vh; 
-            position: fixed; /* Fixe la sidebar à l'écran */
-            width: 250px; /* Largeur fixe */
-            display: flex;
-            flex-direction: column;
-            z-index: 1000;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-        }
-        
-        /* ✅ HEADER LOGO : Fond blanc propre, pas de cadre */
-        .sidebar-brand { 
-            background: #ffffff;
-            padding: 15px;
-            text-align: center;
-            border-bottom: 3px solid var(--cp-dore);
-            flex-shrink: 0; /* Ne rétrécit pas */
-        }
-        
-        .sidebar-brand img {
-            max-width: 100%;
-            height: auto;
-            max-height: 90px; /* Ajusté pour être élégant */
-            display: block;
-            margin: 0 auto;
-        }
-        
-        /* ✅ MENU SCROLLABLE : Seul le menu scrolle si besoin */
-        .sidebar-nav {
-            flex-grow: 1;
-            overflow-y: auto; /* Scroll vertical ici */
-            padding-top: 10px;
-        }
-        
-        .sidebar a { 
-            color: rgba(255,255,255,0.75); 
-            text-decoration: none; 
-            padding: 12px 25px; 
-            display: block; 
-            transition: 0.3s; 
-            font-size: 0.9rem; 
-            border-left: 3px solid transparent;
-        }
-        
-        .sidebar a:hover, .sidebar a.active { 
-            background: linear-gradient(90deg, rgba(212, 175, 55, 0.2) 0%, transparent 100%); 
-            color: var(--cp-dore); 
-            border-left: 3px solid var(--cp-dore); 
-        }
-        
-        .sidebar i { margin-right: 10px; width: 20px; }
-        
-        /* ✅ CONTENU PRINCIPAL : Décalé pour ne pas passer sous la sidebar */
-        .main-content { 
-            margin-left: 250px; /* Largeur de la sidebar */
-            padding: 30px; 
-            background-color: var(--cp-fond); 
-            min-height: 100vh;
-        }
-        
-        /* ✅ DÉCONNEXION : Fixée en bas */
-        .logout-section { 
-            flex-shrink: 0; /* Reste en bas */
-            padding: 15px 25px;
-            border-top: 1px solid rgba(212, 175, 55, 0.3);
-            background-color: #0a0a0a;
-        }
-        
-        .logout-section small {
-            display: block;
-            text-align: center;
-            margin-bottom: 8px;
-            color: var(--cp-dore);
-            font-weight: bold;
-            font-size: 0.8rem;
-        }
-        
-        .logout-section .btn { 
-            font-size: 0.85rem; 
-            border: 1px solid var(--cp-dore);
-            color: var(--cp-dore);
-            width: 100%;
-        }
-        
-        .logout-section .btn:hover { 
-            background-color: var(--cp-dore); 
-            color: #000; 
-        }
-        
-        /* Scrollbar dorée pour le menu */
-        .sidebar-nav::-webkit-scrollbar { width: 6px; }
-        .sidebar-nav::-webkit-scrollbar-track { background: #000; }
-        .sidebar-nav::-webkit-scrollbar-thumb { background: var(--cp-dore); border-radius: 3px; }
+        body { background-color: #f8f9fa; }
+        .sidebar { background-color: #1a1a1a; min-height: 100vh; padding: 20px 0; position: fixed; width: 250px; left: 0; top: 0; overflow-y: auto; z-index: 1000; }
+        .sidebar .nav-link { color: #a0a0a0; padding: 12px 20px; border-left: 3px solid transparent; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #2a2a2a; color: #D4AF37; border-left-color: #D4AF37; }
+        .sidebar .nav-link .emoji { color: initial !important; margin-right: 8px; font-size: 1.1rem; }
+        .sidebar .logo-container { text-align: center; padding: 15px 20px 20px; border-bottom: 1px solid #333; margin-bottom: 15px; }
+        .sidebar .logo-container img { max-height: 60px; }
+        .sidebar .logo-container h5 { color: #D4AF37; margin-top: 10px; font-weight: bold; }
+        .main-content { margin-left: 250px; padding: 30px; }
+        .content-card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; border-top: 3px solid #D4AF37; }
+        .content-card h5 { color: #1a1a1a; font-weight: bold; margin-bottom: 20px; }
+        .table thead th { background-color: #1a1a1a !important; color: #D4AF37 !important; }
     </style>
 </head>
 <body>
-
-    <!-- SIDEBAR -->
-    <nav class="sidebar d-none d-md-block">
-        <!-- Logo Header (Fond blanc propre) -->
-        <div class="sidebar-brand">
+    <nav class="sidebar">
+        <div class="logo-container">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="CavePilot">
+            <h5>CAVEPILOT</h5>
         </div>
-        
-        <!-- Menu (Scrollable si trop de liens) -->
-        <div class="sidebar-nav">
-            {% if session.get('acces_dashboard') %}
-            <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}"><i class="fas fa-tachometer-alt"></i> Tableau de bord</a>
-            {% endif %}
-            
-            {% if session.get('acces_produits') %}
-            <a href="{{ url_for('produits') }}" class="{% if request.endpoint == 'produits' %}active{% endif %}"><i class="fas fa-boxes"></i> Produits & Stocks</a>
-            {% endif %}
-            
-            {% if session.get('acces_saisie') %}
-            <a href="{{ url_for('caisse') }}" class="{% if request.endpoint == 'caisse' %}active{% endif %}"><i class="fas fa-cash-register"></i> Ventes du jour</a>
-            {% endif %}
-            
-            {% if session.get('acces_commandes') %}
-            <a href="{{ url_for('commandes') }}" class="{% if request.endpoint == 'commandes' %}active{% endif %}"><i class="fas fa-file-invoice"></i> Commandes</a>
-            {% endif %}
-            
-            {% if session.get('acces_cloture') %}
-            <a href="{{ url_for('cloture') }}" class="{% if request.endpoint == 'cloture' %}active{% endif %}"><i class="fas fa-lock"></i> Caisse / Clôture</a>
-            {% endif %}
-            
-            {% if session.get('acces_appro') %}
-            <a href="{{ url_for('approvisionnement') }}" class="{% if request.endpoint == 'approvisionnement' %}active{% endif %}"><i class="fas fa-truck-loading"></i> Approvisionnement</a>
-            {% endif %}
-            
-            {% if session.get('acces_historique') %}
-            <a href="{{ url_for('historique') }}" class="{% if request.endpoint == 'historique' %}active{% endif %}"><i class="fas fa-history"></i> Historique</a>
-            {% endif %}
-            
-            {% if session.get('acces_clients') %}
-            <a href="{{ url_for('clients') }}" class="{% if request.endpoint == 'clients' %}active{% endif %}"><i class="fas fa-users"></i> Clients / Crédits</a>
-            {% endif %}
-            
-            {% if session.get('acces_paiements') %}
-            <a href="{{ url_for('paiements') }}" class="{% if request.endpoint == 'paiements' %}active{% endif %}"><i class="fas fa-money-check-alt"></i> Paiements</a>
-            {% endif %}
-            
-            {% if session.get('acces_inventaire') %}
-            <a href="{{ url_for('inventaire') }}" class="{% if request.endpoint == 'inventaire' %}active{% endif %}"><i class="fas fa-clipboard-check"></i> Inventaire</a>
-            {% endif %}
-            
+        <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><span class="emoji">📊</span> Tableau de Bord</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'caisse' %}active{% endif %}" href="{{ url_for('caisse') }}"><span class="emoji">🛒</span> Ventes du Jour</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'factures' %}active{% endif %}" href="{{ url_for('factures') }}"><span class="emoji">📄</span> Factures Client</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'recapitulatif' %}active{% endif %}" href="{{ url_for('recapitulatif') }}"><span class="emoji">📈</span> Récapitulatif</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'produits' %}active{% endif %}" href="{{ url_for('produits') }}"><span class="emoji">📦</span> Produits & Stock</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'commandes' %}active{% endif %}" href="{{ url_for('commandes') }}"><span class="emoji">📋</span> Commandes</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'clients' %}active{% endif %}" href="{{ url_for('clients') }}"><span class="emoji">👥</span> Clients & Crédits</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'approvisionnement' %}active{% endif %}" href="{{ url_for('approvisionnement') }}"><span class="emoji">🚚</span> Approvisionnements</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'historique' %}active{% endif %}" href="{{ url_for('historique') }}"><span class="emoji">📊</span> Historique</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'paiements' %}active{% endif %}" href="{{ url_for('paiements') }}"><span class="emoji">💰</span> Remboursements</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'inventaire' %}active{% endif %}" href="{{ url_for('inventaire') }}"><span class="emoji">🔍</span> Inventaire</a></li>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'cloture' %}active{% endif %}" href="{{ url_for('cloture') }}"><span class="emoji">🔒</span> Clôture Caisse</a></li>
             {% if session.get('acces_comptes') %}
-            <a href="{{ url_for('comptes') }}" class="{% if request.endpoint == 'comptes' %}active{% endif %}"><i class="fas fa-user-shield"></i> Comptes & Accès</a>
-            <a href="{{ url_for('journal_securite') }}" class="{% if request.endpoint == 'journal_securite' %}active{% endif %}"><i class="fas fa-shield-alt"></i> Journal de sécurité</a>
+            <li class="nav-item"><a class="nav-link {% if request.endpoint == 'comptes' %}active{% endif %}" href="{{ url_for('comptes') }}"><span class="emoji">👤</span> Comptes</a></li>
             {% endif %}
-        </div>
-        
-        <!-- Déconnexion (Toujours en bas) -->
-        <div class="logout-section">
-            <small>Connecté : <strong>{{ session.get('user_nom', 'Inconnu') }}</strong></small>
-            <a href="{{ url_for('deconnexion') }}" class="btn btn-outline-light">
-                <i class="fas fa-sign-out-alt"></i> Déconnexion
-            </a>
-        </div>
+            <li class="nav-item mt-4 pt-3" style="border-top: 1px solid #333;">
+                <a class="nav-link text-warning" href="{{ url_for('deconnexion') }}"><span class="emoji">🚪</span> Déconnexion ({{ session.get('user_nom', 'Utilisateur') }})</a>
+            </li>
+        </ul>
     </nav>
 
-    <!-- CONTENU PRINCIPAL -->
     <main class="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}{% endif %}{% endwith %}
+        
         {% block content %}{% endblock %}
     </main>
 

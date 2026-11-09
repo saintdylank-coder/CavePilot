@@ -1,58 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Comptes & Accès{% endblock %}
 {% block content %}
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="fas fa-user-shield text-primary"></i> Comptes & Accès</h2>
-    <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#modalCompte">
-        <i class="fas fa-user-plus"></i> Nouveau compte
-    </button>
+    <a href="{{ url_for('creer_compte') }}" class="btn btn-success btn-lg"><i class="fas fa-user-plus"></i> Nouveau compte</a>
 </div>
-
 <div class="content-card">
-    <h5 class="mb-3"><i class="fas fa-list"></i> Liste des utilisateurs</h5>
     <div class="table-responsive">
         <table class="table table-hover align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Nom</th>
-                    <th>Rôle</th>
-                    <th>Jours de travail</th>
-                    <th class="text-center">Statut</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
+            <thead class="table-dark"><tr><th>Nom</th><th>Rôle</th><th>Jours de travail</th><th class="text-center">Statut</th><th class="text-center">Actions</th></tr></thead>
             <tbody>
                 {% for u in utilisateurs %}
                 <tr>
-                    <td><strong>{{ u.nom }}</strong></td>
-                    <td>{{ u.role }}</td>
-                    <td><small>{{ u.jours_travail or 'Tous les jours' }}</small></td>
+                    <td><strong>{{ u.nom }}</strong></td><td>{{ u.role }}</td><td><small>{{ u.jours_travail or 'Tous les jours' }}</small></td>
+                    <td class="text-center">{% if u.actif == 1 %}<span class="badge bg-success">Actif</span>{% else %}<span class="badge bg-secondary">Inactif</span>{% endif %}</td>
                     <td class="text-center">
-                        {% if u.actif == 1 %}
-                            <span class="badge bg-success">Actif</span>
-                        {% else %}
-                            <span class="badge bg-secondary">Inactif</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center">
-                        {% if u.actif == 1 %}
-                            <a href="{{ url_for('desactiver_compte', uid=u.id) }}" class="btn btn-sm btn-warning" title="Désactiver">
-                                <i class="fas fa-ban"></i>
-                            </a>
-                        {% else %}
-                            <a href="{{ url_for('reactiver_compte', uid=u.id) }}" class="btn btn-sm btn-success" title="Réactiver">
-                                <i class="fas fa-check"></i>
-                            </a>
-                        {% endif %}
-                        <a href="{{ url_for('modifier_autorisations', uid=u.id) }}" class="btn btn-sm btn-primary" title="Modifier les autorisations">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                        {% if u.id != session.get('user_id') %}
-                        <a href="{{ url_for('supprimer_compte', uid=u.id) }}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('⚠️ Supprimer définitivement ce compte ?')">
-                            <i class="fas fa-trash"></i>
-                        </a>
-                        {% endif %}
+                        {% if u.actif == 1 %}<a href="{{ url_for('desactiver_compte', uid=u.id) }}" class="btn btn-sm btn-warning" title="Désactiver"><i class="fas fa-ban"></i></a>{% else %}<a href="{{ url_for('reactiver_compte', uid=u.id) }}" class="btn btn-sm btn-success" title="Réactiver"><i class="fas fa-check"></i></a>{% endif %}
+                        <a href="{{ url_for('modifier_autorisations', uid=u.id) }}" class="btn btn-sm btn-primary" title="Modifier les autorisations"><i class="fas fa-edit"></i></a>
+                        {% if u.id != session.get('user_id') %}<a href="{{ url_for('supprimer_compte', uid=u.id) }}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('⚠️ Supprimer définitivement ce compte ?')"><i class="fas fa-trash"></i></a>{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -60,71 +25,4 @@
         </table>
     </div>
 </div>
-
-<!-- MODAL CRÉATION DE COMPTE -->
-<div class="modal fade" id="modalCompte" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Nouveau compte</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('comptes') }}">
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Nom d'utilisateur *</label>
-                            <input type="text" class="form-control" name="nom" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Rôle / Fonction *</label>
-                            <input type="text" class="form-control" name="role" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Mot de passe *</label>
-                            <input type="password" class="form-control" name="mot_de_passe" required minlength="6">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Confirmer le mot de passe *</label>
-                            <input type="password" class="form-control" name="confirmation_mdp" required minlength="6">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Jours de travail</label>
-                            <div class="border rounded p-2">
-                                {% for jour in ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="checkbox" name="jours" value="{{ jour }}" id="jour_{{ jour }}">
-                                    <label class="form-check-label" for="jour_{{ jour }}">{{ jour }}</label>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Autorisations</label>
-                            <div class="border rounded p-2">
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_dashboard" id="acces_dashboard"><label class="form-check-label" for="acces_dashboard">📊 Tableau de bord</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_produits" id="acces_produits"><label class="form-check-label" for="acces_produits">🍾 Produits & Stocks</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_saisie" id="acces_saisie"><label class="form-check-label" for="acces_saisie">🛒 Ventes du jour</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_commandes" id="acces_commandes"><label class="form-check-label" for="acces_commandes">📄 Commandes</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_cloture" id="acces_cloture"><label class="form-check-label" for="acces_cloture">🔒 Caisse / Clôture</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_appro" id="acces_appro"><label class="form-check-label" for="acces_appro">📦 Approvisionnement</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_historique" id="acces_historique"><label class="form-check-label" for="acces_historique">📜 Historique</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_clients" id="acces_clients"><label class="form-check-label" for="acces_clients">👥 Clients / Crédits</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_paiements" id="acces_paiements"><label class="form-check-label" for="acces_paiements">💰 Paiements</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_inventaire" id="acces_inventaire"><label class="form-check-label" for="acces_inventaire">📋 Inventaire</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="acces_comptes" id="acces_comptes"><label class="form-check-label" for="acces_comptes">🛡️ Comptes & Accès</label></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Créer le compte</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}
-
-

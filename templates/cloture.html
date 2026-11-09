@@ -1,105 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Clôture de Caisse{% endblock %}
 {% block content %}
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0"><i class="fas fa-lock text-primary"></i> Clôture de Caisse</h2>
     <span class="text-muted"><i class="far fa-calendar-alt"></i> {{ date_jour }}</span>
 </div>
-
-<!-- ÉTAT DE LA CAISSE -->
 <div class="alert {% if cloture_existante %}alert-danger{% else %}alert-success{% endif %} mb-4">
-    <h4 class="alert-heading">
-        {% if cloture_existante %}
-            <i class="fas fa-lock"></i> Caisse clôturée à {{ data.heure_cloture }}
-        {% else %}
-            <i class="fas fa-lock-open"></i> Caisse ouverte - En attente de clôture
-        {% endif %}
-    </h4>
-    <p class="mb-0">
-        {% if cloture_existante %}
-            La caisse pour aujourd'hui a déjà été clôturée. Vous pouvez imprimer le reçu ci-dessous.
-        {% else %}
-            Veuillez saisir les montants réels comptés en caisse pour chaque mode de paiement.
-        {% endif %}
-    </p>
+    <h4 class="alert-heading">{% if cloture_existante %}<i class="fas fa-lock"></i> Caisse clôturée à {{ data.heure_cloture }}{% else %}<i class="fas fa-lock-open"></i> Caisse ouverte - En attente de clôture{% endif %}</h4>
+    <p class="mb-0">{% if cloture_existante %}La caisse pour aujourd'hui a déjà été clôturée. Vous pouvez imprimer le reçu ci-dessous.{% else %}Veuillez saisir les montants réels comptés en caisse pour chaque mode de paiement.{% endif %}</p>
 </div>
-
 <form method="POST" action="{{ url_for('cloture') }}" id="formCloture">
     <div class="content-card">
         <h4 class="mb-3"><i class="fas fa-calculator"></i> Récapitulatif et Saisie</h4>
         <div class="table-responsive">
             <table class="table table-bordered align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th style="width: 25%;">Mode de paiement</th>
-                        <th style="width: 25%;">Montant Théorique (Ventes)</th>
-                        <th style="width: 25%;">Montant Réel (Saisie)</th>
-                        <th style="width: 25%;">Écart</th>
-                    </tr>
-                </thead>
+                <thead class="table-dark"><tr><th style="width: 25%;">Mode de paiement</th><th style="width: 25%;">Montant Théorique</th><th style="width: 25%;">Montant Réel (Saisie)</th><th style="width: 25%;">Écart</th></tr></thead>
                 <tbody>
-                    <tr>
-                        <td><strong>💵 Espèces</strong></td>
-                        <td class="bg-light">{{ "{:,.0f}".format(data.especes_theoriques) }} FCFA</td>
-                        <td>
-                            <input type="number" class="form-control saisie-reelle" name="especes_reel" 
-                                   value="{{ data.especes_reelles if cloture_existante else '' }}" 
-                                   data-theo="{{ data.especes_theoriques }}" 
-                                   {% if cloture_existante %}disabled{% endif %} required>
-                        </td>
-                        <td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>📱 Wave</strong></td>
-                        <td class="bg-light">{{ "{:,.0f}".format(data.wave_theoriques) }} FCFA</td>
-                        <td>
-                            <input type="number" class="form-control saisie-reelle" name="wave_reel" 
-                                   value="{{ data.wave_reelles if cloture_existante else '' }}" 
-                                   data-theo="{{ data.wave_theoriques }}" 
-                                   {% if cloture_existante %}disabled{% endif %} required>
-                        </td>
-                        <td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>📱 Orange Money</strong></td>
-                        <td class="bg-light">{{ "{:,.0f}".format(data.orange_theoriques) }} FCFA</td>
-                        <td>
-                            <input type="number" class="form-control saisie-reelle" name="orange_reel" 
-                                   value="{{ data.orange_reelles if cloture_existante else '' }}" 
-                                   data-theo="{{ data.orange_theoriques }}" 
-                                   {% if cloture_existante %}disabled{% endif %} required>
-                        </td>
-                        <td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td>
-                    </tr>
+                    <tr><td><strong>💵 Espèces</strong></td><td class="bg-light">{{ "{:,.0f}".format(data.especes_theoriques) }} FCFA</td><td><input type="number" class="form-control saisie-reelle" name="especes_reel" value="{{ data.especes_reelles if cloture_existante else '' }}" data-theo="{{ data.especes_theoriques }}" {% if cloture_existante %}disabled{% endif %} required></td><td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td></tr>
+                    <tr><td><strong>📱 Wave</strong></td><td class="bg-light">{{ "{:,.0f}".format(data.wave_theoriques) }} FCFA</td><td><input type="number" class="form-control saisie-reelle" name="wave_reel" value="{{ data.wave_reelles if cloture_existante else '' }}" data-theo="{{ data.wave_theoriques }}" {% if cloture_existante %}disabled{% endif %} required></td><td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td></tr>
+                    <tr><td><strong>📱 Orange Money</strong></td><td class="bg-light">{{ "{:,.0f}".format(data.orange_theoriques) }} FCFA</td><td><input type="number" class="form-control saisie-reelle" name="orange_reel" value="{{ data.orange_reelles if cloture_existante else '' }}" data-theo="{{ data.orange_theoriques }}" {% if cloture_existante %}disabled{% endif %} required></td><td><span class="badge ecart-badge bg-secondary">0 FCFA</span></td></tr>
                 </tbody>
                 <tfoot class="table-light">
-                    <tr class="fw-bold">
-                        <td>TOTAL GÉNÉRAL</td>
-                        <td>{{ "{:,.0f}".format(data.total_theorique) }} FCFA</td>
-                        <td><span id="total_reel_display">{{ "{:,.0f}".format(data.total_reel if cloture_existante else 0) }} FCFA</span></td>
-                        <td><span id="ecart_total_display" class="badge bg-secondary">0 FCFA</span></td>
-                    </tr>
+                    <tr class="fw-bold"><td>TOTAL GÉNÉRAL</td><td>{{ "{:,.0f}".format(data.total_theorique) }} FCFA</td><td><span id="total_reel_display">{{ "{:,.0f}".format(data.total_reel if cloture_existante else 0) }} FCFA</span></td><td><span id="ecart_total_display" class="badge bg-secondary">0 FCFA</span></td></tr>
                 </tfoot>
             </table>
         </div>
-        
         {% if not cloture_existante %}
-        <div class="d-flex justify-content-end mt-4">
-            <button type="submit" class="btn btn-success btn-lg" onclick="return confirm('Confirmer la clôture de la caisse ? Cette action est irréversible.')">
-                <i class="fas fa-lock"></i> Clôturer la caisse
-            </button>
-        </div>
+        <div class="d-flex justify-content-end mt-4"><button type="submit" class="btn btn-success btn-lg" onclick="return confirm('Confirmer la clôture de la caisse ?')"><i class="fas fa-lock"></i> Clôturer la caisse</button></div>
         {% else %}
-        <div class="d-flex justify-content-end mt-4">
-            <a href="{{ url_for('recu_cloture') }}" target="_blank" class="btn btn-primary btn-lg">
-                <i class="fas fa-print"></i> Imprimer le reçu (PDF)
-            </a>
-        </div>
+        <div class="d-flex justify-content-end mt-4"><a href="{{ url_for('recu_cloture') }}" target="_blank" class="btn btn-primary btn-lg"><i class="fas fa-print"></i> Imprimer le reçu (PDF)</a></div>
         {% endif %}
     </div>
 </form>
-
+{% endblock %}
+{% block extra_js %}
 <script>
 document.querySelectorAll('.saisie-reelle').forEach(input => {
     input.addEventListener('input', function() {
@@ -107,16 +41,10 @@ document.querySelectorAll('.saisie-reelle').forEach(input => {
         const reel = parseFloat(this.value) || 0;
         const ecart = reel - theo;
         const badge = this.closest('tr').querySelector('.ecart-badge');
-        
         badge.textContent = (ecart > 0 ? '+' : '') + ecart.toLocaleString('fr-FR') + ' FCFA';
         badge.className = 'badge ecart-badge ' + (ecart === 0 ? 'bg-success' : (ecart > 0 ? 'bg-warning text-dark' : 'bg-danger'));
-        
-        // Calcul du total
         let totalReel = 0, totalTheo = 0;
-        document.querySelectorAll('.saisie-reelle').forEach(inp => {
-            totalReel += parseFloat(inp.value) || 0;
-            totalTheo += parseFloat(inp.getAttribute('data-theo')) || 0;
-        });
+        document.querySelectorAll('.saisie-reelle').forEach(inp => { totalReel += parseFloat(inp.value) || 0; totalTheo += parseFloat(inp.getAttribute('data-theo')) || 0; });
         const ecartTotal = totalReel - totalTheo;
         document.getElementById('total_reel_display').textContent = totalReel.toLocaleString('fr-FR') + ' FCFA';
         const badgeTotal = document.getElementById('ecart_total_display');
@@ -126,5 +54,3 @@ document.querySelectorAll('.saisie-reelle').forEach(input => {
 });
 </script>
 {% endblock %}
-
-

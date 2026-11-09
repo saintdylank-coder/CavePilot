@@ -1,147 +1,60 @@
 {% extends "base.html" %}
 {% block title %}Historique{% endblock %}
 {% block content %}
-
 <style>
-.barre-action {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    background: white;
-    padding: 15px 20px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-.total-box {
-    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 1.2rem;
-    font-weight: bold;
-    box-shadow: 0 4px 15px rgba(21, 101, 192, 0.3);
-}
+.barre-action { position: sticky; top: 0; z-index: 1000; background: white; padding: 15px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 15px; }
+.total-box { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: white; padding: 10px; border-radius: 8px; text-align: center; font-size: 1.2rem; font-weight: bold; }
 .montant-ligne { font-weight: bold; color: #1565c0; text-align: right; }
-.date-separator { background-color: #e3f2fd; font-weight: bold; }
 </style>
-
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="mb-0"><i class="fas fa-history text-primary"></i> Historique & Consultation</h2>
 </div>
-
-<!-- BARRE DE FILTRES (comme Ventes du jour) -->
 <div class="barre-action">
     <div class="row g-3 align-items-end">
-        <div class="col-md-3">
-            <label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Du</label>
-            <input type="date" class="form-control form-control-sm" id="filterDateDebut" value="{{ date_debut }}">
-        </div>
-        <div class="col-md-3">
-            <label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Au</label>
-            <input type="date" class="form-control form-control-sm" id="filterDateFin" value="{{ date_fin }}">
-        </div>
-        <div class="col-md-2">
-            <label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label>
-            <select class="form-select form-select-sm" id="filterCategorie">
-                <option value="">Toutes</option>
-                {% for cat in categories %}
-                <option value="{{ cat.categorie }}" {% if categorie_filtre == cat.categorie %}selected{% endif %}>{{ cat.categorie }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Produit</label>
-            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerLignes()">
-        </div>
-        <div class="col-md-2">
-            <button type="button" class="btn btn-primary btn-sm w-100" onclick="appliquerFiltres()">
-                <i class="fas fa-search"></i> Filtrer
-            </button>
-        </div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Du</label><input type="date" class="form-control form-control-sm" id="filterDateDebut" value="{{ date_debut }}"></div>
+        <div class="col-md-3"><label class="form-label fw-bold mb-1"><i class="fas fa-calendar"></i> Au</label><input type="date" class="form-control form-control-sm" id="filterDateFin" value="{{ date_fin }}"></div>
+        <div class="col-md-2"><label class="form-label fw-bold mb-1"><i class="fas fa-filter"></i> Catégorie</label><select class="form-select form-select-sm" id="filterCategorie"><option value="">Toutes</option>{% for cat in categories %}<option value="{{ cat.categorie }}" {% if categorie_filtre == cat.categorie %}selected{% endif %}>{{ cat.categorie }}</option>{% endfor %}</select></div>
+        <div class="col-md-2"><label class="form-label fw-bold mb-1"><i class="fas fa-search"></i> Produit</label><input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Nom..." onkeyup="filtrerLignes()"></div>
+        <div class="col-md-2"><button type="button" class="btn btn-primary btn-sm w-100" onclick="appliquerFiltres()"><i class="fas fa-search"></i> Filtrer</button></div>
     </div>
     <div class="row mt-2">
-        <div class="col-md-6">
-            <small class="text-muted"><i class="fas fa-list"></i> <span id="countLignes">{{ nb_lignes }}</span> ligne(s)</small>
-        </div>
-        <div class="col-md-6 text-end">
-            <div class="total-box d-inline-block px-4">
-                <i class="fas fa-coins"></i> Total : {{ fmt(total_global) }} FCFA
-            </div>
-        </div>
+        <div class="col-md-6"><small class="text-muted"><i class="fas fa-list"></i> <span id="countLignes">{{ nb_lignes }}</span> ligne(s)</small></div>
+        <div class="col-md-6 text-end"><div class="total-box d-inline-block px-4"><i class="fas fa-coins"></i> Total : {{ fmt(total_global) }} FCFA</div></div>
     </div>
 </div>
-
-<!-- TABLEAU IDENTIQUE À VENTES DU JOUR -->
 <div class="content-card">
     {% if lignes %}
     <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
         <table class="table table-bordered align-middle table-sm" id="tableHistorique">
-            <thead class="table-dark">
-                <tr>
-                    <th style="width: 12%;">Date</th>
-                    <th style="width: 28%;">Produit</th>
-                    <th style="width: 10%;">Catégorie</th>
-                    <th style="width: 12%;" class="text-center">Qté Hall</th>
-                    <th style="width: 12%;" class="text-center">Qté Kit</th>
-                    <th style="width: 12%;" class="text-center">Qté Bar</th>
-                    <th style="width: 14%;" class="text-end">Montant</th>
-                </tr>
-            </thead>
+            <thead class="table-dark"><tr><th style="width: 12%;">Date</th><th style="width: 28%;">Produit</th><th style="width: 10%;">Catégorie</th><th style="width: 12%;" class="text-center">Qté Hall</th><th style="width: 12%;" class="text-center">Qté Kit</th><th style="width: 12%;" class="text-center">Qté Bar</th><th style="width: 14%;" class="text-end">Montant</th></tr></thead>
             <tbody>
                 {% for l in lignes %}
-                <tr class="ligne-historique" 
-                    data-date="{{ l.date_vente }}"
-                    data-categorie="{{ l.categorie }}"
-                    data-produit="{{ l.produit_nom|lower }}">
-                    <td><small><strong>{{ l.date_vente }}</strong></small></td>
-                    <td><strong>{{ l.produit_nom }}</strong></td>
-                    <td><span class="badge bg-secondary">{{ l.categorie }}</span></td>
-                    <td class="text-center">{{ l.qte_hall if l.qte_hall > 0 else '-' }}</td>
-                    <td class="text-center">{{ l.qte_kit if l.qte_kit > 0 else '-' }}</td>
-                    <td class="text-center">{{ l.qte_bar if l.qte_bar > 0 else '-' }}</td>
-                    <td class="montant-ligne">{{ fmt(l.total_ligne) }} FCFA</td>
+                <tr class="ligne-historique" data-date="{{ l.date_vente }}" data-categorie="{{ l.categorie }}" data-produit="{{ l.produit_nom|lower }}">
+                    <td><small><strong>{{ l.date_vente }}</strong></small></td><td><strong>{{ l.produit_nom }}</strong></td><td><span class="badge bg-secondary">{{ l.categorie }}</span></td>
+                    <td class="text-center">{{ l.qte_hall if l.qte_hall > 0 else '-' }}</td><td class="text-center">{{ l.qte_kit if l.qte_kit > 0 else '-' }}</td><td class="text-center">{{ l.qte_bar if l.qte_bar > 0 else '-' }}</td><td class="montant-ligne">{{ fmt(l.total_ligne) }} FCFA</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% else %}
-    <div class="alert alert-info text-center">
-        <i class="fas fa-info-circle"></i> Aucune vente sur cette période.
-    </div>
-    {% endif %}
+    {% else %}<div class="alert alert-info text-center"><i class="fas fa-info-circle"></i> Aucune vente sur cette période.</div>{% endif %}
 </div>
-
+{% endblock %}
+{% block extra_js %}
 <script>
 function filtrerLignes() {
     const search = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.querySelectorAll('.ligne-historique');
     let count = 0;
-    rows.forEach(row => {
-        const produit = row.getAttribute('data-produit');
-        if (produit.includes(search)) {
-            row.style.display = '';
-            count++;
-        } else {
-            row.style.display = 'none';
-        }
+    document.querySelectorAll('.ligne-historique').forEach(row => {
+        row.style.display = row.getAttribute('data-produit').includes(search) ? '' : 'none';
+        if (row.style.display !== 'none') count++;
     });
     document.getElementById('countLignes').textContent = count;
 }
-
 function appliquerFiltres() {
-    const dateDebut = document.getElementById('filterDateDebut').value;
-    const dateFin = document.getElementById('filterDateFin').value;
-    const categorie = document.getElementById('filterCategorie').value;
-    
-    let url = '{{ url_for("historique") }}?date_debut=' + dateDebut + '&date_fin=' + dateFin;
-    if (categorie) url += '&categorie=' + categorie;
-    
+    let url = '{{ url_for("historique") }}?date_debut=' + document.getElementById('filterDateDebut').value + '&date_fin=' + document.getElementById('filterDateFin').value;
+    if (document.getElementById('filterCategorie').value) url += '&categorie=' + document.getElementById('filterCategorie').value;
     window.location.href = url;
 }
 </script>
 {% endblock %}
-
-

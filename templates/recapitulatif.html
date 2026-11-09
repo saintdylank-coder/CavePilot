@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Récapitulatif - CavePilot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar { background-color: #1a1a1a; min-height: 100vh; padding: 20px 0; position: fixed; width: 250px; left: 0; top: 0; overflow-y: auto; z-index: 1000; }
+        .sidebar .nav-link { color: #a0a0a0; padding: 12px 20px; border-left: 3px solid transparent; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #2a2a2a; color: #D4AF37; border-left-color: #D4AF37; }
+        .sidebar .nav-link .emoji { color: initial !important; margin-right: 8px; font-size: 1.1rem; }
+        .sidebar .logo-container { text-align: center; padding: 15px 20px 20px; border-bottom: 1px solid #333; margin-bottom: 15px; }
+        .sidebar .logo-container img { max-height: 60px; }
+        .sidebar .logo-container h5 { color: #D4AF37; margin-top: 10px; font-weight: bold; }
+        .main-content { margin-left: 250px; padding: 30px; }
+        .content-card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); margin-bottom: 20px; border-top: 3px solid #D4AF37; }
+        .content-card h5 { color: #1a1a1a; font-weight: bold; margin-bottom: 20px; }
+        .table thead th { background-color: #1a1a1a !important; color: #D4AF37 !important; }
+        .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border-left: 4px solid #D4AF37; margin-bottom: 20px; }
+        .stat-card .label { color: #666; font-size: 0.9rem; margin-bottom: 5px; }
+        .stat-card .value { font-size: 1.8rem; font-weight: bold; color: #1a1a1a; }
+        .ligne-negative { background-color: #fff3cd !important; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="CavePilot">
+            <h5>CAVEPILOT</h5>
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><span class="emoji">📊</span> Tableau de Bord</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('caisse') }}"><span class="emoji">🛒</span> Ventes du Jour</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('factures') }}"><span class="emoji">📄</span> Factures Client</a></li>
+            <li class="nav-item"><a class="nav-link active" href="{{ url_for('recapitulatif') }}"><span class="emoji">📈</span> Récapitulatif</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('produits') }}"><span class="emoji">📦</span> Produits & Stock</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('commandes') }}"><span class="emoji">📋</span> Commandes</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('clients') }}"><span class="emoji">👥</span> Clients & Crédits</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('approvisionnement') }}"><span class="emoji">🚚</span> Approvisionnements</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('historique') }}"><span class="emoji">📊</span> Historique</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('paiements') }}"><span class="emoji">💰</span> Remboursements</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('inventaire') }}"><span class="emoji">🔍</span> Inventaire</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('cloture') }}"><span class="emoji">🔒</span> Clôture Caisse</a></li>
+            {% if session.get('acces_comptes') %}
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('comptes') }}"><span class="emoji">👤</span> Comptes</a></li>
+            {% endif %}
+            <li class="nav-item mt-4 pt-3" style="border-top: 1px solid #333;">
+                <a class="nav-link text-warning" href="{{ url_for('deconnexion') }}"><span class="emoji">🚪</span> Déconnexion ({{ session.get('user_nom', 'Utilisateur') }})</a>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <h2 class="mb-4">📈 Récapitulatif des Ventes</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}{% endif %}{% endwith %}
+
+        <!-- Filtre par période -->
+        <div class="content-card mb-4">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">📅 Date début</label>
+                    <input type="date" name="date_debut" class="form-control" value="{{ date_debut }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">📅 Date fin</label>
+                    <input type="date" name="date_fin" class="form-control" value="{{ date_fin }}" required>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-dark w-100 btn-lg">🔍 Filtrer</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Résumé financier -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stat-card" style="border-left-color: #007bff;">
+                    <div class="label">🛒 Ventes Caisse</div>
+                    <div class="value text-primary">{{ total_ventes_caisse }} <small class="fs-6">FCFA</small></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="border-left-color: #28a745;">
+                    <div class="label">📄 Ventes Factures</div>
+                    <div class="value text-success">{{ total_ventes_factures }} <small class="fs-6">FCFA</small></div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="border-left-color: #D4AF37;">
+                    <div class="label">💰 TOTAL GÉNÉRAL</div>
+                    <div class="value" style="color: #D4AF37;">{{ total_general }} <small class="fs-6">FCFA</small></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau récapitulatif -->
+        <div class="content-card">
+            <h5>📊 Détail des ventes par produit ({{ date_debut }} au {{ date_fin }})</h5>
+            
+            <div class="row mb-3 text-center">
+                <div class="col"><small class="text-muted">Total Hall</small><br><strong>{{ total_general_hall }}</strong></div>
+                <div class="col"><small class="text-muted">Total Bar</small><br><strong>{{ total_general_bar }}</strong></div>
+                <div class="col"><small class="text-muted">Total Kit</small><br><strong>{{ total_general_kit }}</strong></div>
+                <div class="col"><small class="text-muted">Total Commande</small><br><strong>{{ total_general_commande }}</strong></div>
+                <div class="col"><small class="text-muted">Total Vendu</small><br><strong class="text-success">{{ total_general_vendu }}</strong></div>
+            </div>
+
+            {% if recap_data %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th>Produit</th>
+                            <th>Catégorie</th>
+                            <th class="text-center">Stock Actuel</th>
+                            <th class="text-center">Qté vendue Hall</th>
+                            <th class="text-center">Qté vendue Bar</th>
+                            <th class="text-center">Qté vendue Kit</th>
+                            <th class="text-center">Qté Commande</th>
+                            <th class="text-center">Total Vendu</th>
+                            <th class="text-center">Reste en Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in recap_data %}
+                        <tr class="{% if item.reste_stock < 0 %}ligne-negative{% endif %}">
+                            <td><strong>{{ item.nom }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ item.categorie }}</span></td>
+                            <td class="text-center">{{ item.stock_actuel }}</td>
+                            <td class="text-center">{{ item.qte_hall if item.qte_hall > 0 else '-' }}</td>
+                            <td class="text-center">{{ item.qte_bar if item.qte_bar > 0 else '-' }}</td>
+                            <td class="text-center">{{ item.qte_kit if item.qte_kit > 0 else '-' }}</td>
+                            <td class="text-center">{{ item.qte_commande if item.qte_commande > 0 else '-' }}</td>
+                            <td class="text-center fw-bold text-success">{{ item.total_vendu }}</td>
+                            <td class="text-center fw-bold {% if item.reste_stock < 0 %}text-danger{% elif item.reste_stock == 0 %}text-warning{% else %}text-primary{% endif %}">{{ item.reste_stock }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center mb-0">Aucune vente sur cette période</p>
+            {% endif %}
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
